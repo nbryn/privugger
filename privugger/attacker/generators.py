@@ -8,14 +8,15 @@ from hypothesis import strategies as st
 import numpy as np
 import scipy
 
+
 def IntList(name, data, length=1, possible_dist=POSSIBLE_INTS, ranges=(0, np.inf)):
     """
     Generates a list of probabilistics distributions to mimic all possible int values
-    
+
     Returns: Tuple[List[Pymc3.distributions], List[Tuple[String, ]]
     ----------------------------------------------------------------
     Returns a tuple containing a list of pymc3 distributions and a list containing information about each distributions
-    
+
     Parameters:
     ------------
     name: String
@@ -30,15 +31,17 @@ def IntList(name, data, length=1, possible_dist=POSSIBLE_INTS, ranges=(0, np.inf
     rand = data.draw(st.randoms(use_true_random=True))
     use_multiple_dist = rand.choice([0])
     if use_multiple_dist and len(possible_dist) < 0:
-        dist, info = tuple(zip(*[IntGenerator(data=data, name=f"{name}{i}", shape=1) for i in range(length)]))
+        dist, info = tuple(zip(
+            *[IntGenerator(data=data, name=f"{name}{i}", shape=1) for i in range(length)]))
         return (dist, info)
     else:
         return IntGenerator(data=data, name=name, shape=length, ranges=ranges)
 
+
 def FloatList(name, data, length=1, possible_dist=POSSIBLE_FLOATS, ranges=(-np.inf, np.inf)):
     """
     Generates a list of probabilistics distributions to mimic all possible float values
-    
+
     Returns: Tuple[List[Pymc3.distributions], List[Tuple[String, ]]
     ----------------------------------------------------------------------
     Returns a tuple containing a list of pymc3 distributions and a list containing information about each distributions
@@ -59,11 +62,12 @@ def FloatList(name, data, length=1, possible_dist=POSSIBLE_FLOATS, ranges=(-np.i
     if use_same_shape:
         return FloatGenerator(name, data, possible_dist=[TRUNCATED_NORMAL], shape=length, ranges=ranges)
     else:
-        dist, info = tuple(zip(*[FloatGenerator(name+str(i), data, possible_dist=possible_dist, ranges=ranges) for i in range(length)]))
+        dist, info = tuple(zip(*[FloatGenerator(name+str(i), data,
+                           possible_dist=possible_dist, ranges=ranges) for i in range(length)]))
         return (dist, info)
 
 
-def IntGenerator(data, name, possible_dist = POSSIBLE_INTS, shape=1, ranges=(0, np.inf)):
+def IntGenerator(data, name, possible_dist=POSSIBLE_INTS, shape=1, ranges=(0, np.inf)):
     """
     A method for generating a single probabilistic distributions to mimic int distribution
 
@@ -83,7 +87,8 @@ def IntGenerator(data, name, possible_dist = POSSIBLE_INTS, shape=1, ranges=(0, 
         - The dimensionality of the distribution
     """
     if ranges[0] < 0 or ranges[0] >= ranges[1]:
-        raise ValueError("The ranges has to be greater than or equal to 0 and in increasing order. E.g. (0,100)")
+        raise ValueError(
+            "The ranges has to be greater than or equal to 0 and in increasing order. E.g. (0,100)")
     rand = data.draw(st.randoms(use_true_random=True))
     if ranges[1] > 1 and BERNOULLI in possible_dist:
         possible_dist.remove(BERNOULLI)
@@ -91,7 +96,7 @@ def IntGenerator(data, name, possible_dist = POSSIBLE_INTS, shape=1, ranges=(0, 
     if dist == BINOMIAL:
         return Binomial(data=data, name=name, shape=shape, ranges=ranges)
     elif dist == BERNOULLI:
-        return Bernoulli(data=data, name=name, shape=shape, ranges=ranges) 
+        return Bernoulli(data=data, name=name, shape=shape, ranges=ranges)
     elif dist == GEOMETRIC:
         return Geometric(data=data, name=name, shape=shape, ranges=ranges)
     elif dist == BETA_BINOMIAL:
@@ -101,9 +106,11 @@ def IntGenerator(data, name, possible_dist = POSSIBLE_INTS, shape=1, ranges=(0, 
     elif dist == DISCRETE_UNIFORM:
         return DiscreteUniform(name=name, data=data, shape=shape, ranges=ranges)
     else:
-        raise ValueError("The possible distribution is not supported for Int Generators")
+        raise ValueError(
+            "The possible distribution is not supported for Int Generators")
 
-def FloatGenerator(name, data, possible_dist = POSSIBLE_FLOATS, shape=1, ranges=(-np.inf, np.inf)):
+
+def FloatGenerator(name, data, possible_dist=POSSIBLE_FLOATS, shape=1, ranges=(-np.inf, np.inf)):
     """
     A method for generating a single distributions to represent float data
 
@@ -131,7 +138,7 @@ def FloatGenerator(name, data, possible_dist = POSSIBLE_FLOATS, shape=1, ranges=
     elif dist == TRUNCATED_NORMAL:
         return TruncatedNormal(name=name, data=data, shape=shape)
     elif dist == BETA:
-        return Beta(name=name,data=data, shape=shape)
+        return Beta(name=name, data=data, shape=shape)
     elif dist == EXPONENTIAL:
         return Exponential(name=name, data=data, shape=shape)
     elif dist == LAPLACE:
@@ -143,9 +150,11 @@ def FloatGenerator(name, data, possible_dist = POSSIBLE_FLOATS, shape=1, ranges=
     elif dist == GAMMA:
         return Gamma(name=name, data=data, shape=shape)
     else:
-        raise ValueError("The possible distribution is not supported for Int Generators")
+        raise ValueError(
+            "The possible distribution is not supported for Int Generators")
 
 # Int Distributions
+
 
 def Binomial(data, name, shape=1, ranges=(1, np.inf)):
     """
@@ -154,7 +163,7 @@ def Binomial(data, name, shape=1, ranges=(1, np.inf)):
     Returns: Tuple[Pymc3.distributions.Binomial, Tuple[String, int, float]]
     ----------
         - Returns a tuple with binomial distributions paired with the name, numper of test and probability
-    
+
     Parameters:
     ----------
     name: str
@@ -164,27 +173,29 @@ def Binomial(data, name, shape=1, ranges=(1, np.inf)):
     shape: int
         - The dimensionality of the distribution
     """
-    l,h = ranges
-    mean = lambda n,p: n*p
+    l, h = ranges
+    def mean(n, p): return n*p
     ints = st.integers(min_value=l, max_value=10000)
-    probability = st.floats(min_value=0.0010004043579101562, max_value=0.990234375, allow_infinity=False, allow_nan=False, width=16)
-    n,p = data.draw(st.tuples(ints,probability).map(sorted).filter(lambda x: l <= mean(x[0],x[1]) <= h))
+    probability = st.floats(min_value=0.0010004043579101562,
+                            max_value=0.990234375, allow_infinity=False, allow_nan=False, width=16)
+    n, p = data.draw(st.tuples(ints, probability).map(
+        sorted).filter(lambda x: l <= mean(x[0], x[1]) <= h))
     if shape > 1:
         a = dist.Binomial(name=name, n=n, p=p, shape=shape)
     else:
         a = dist.Binomial(name=name, n=n, p=p)
-    b = ["Binomial", n,p]
-    return (a,b)
+    b = ["Binomial", n, p]
+    return (a, b)
 
 
-def Bernoulli(data, name, shape=1, ranges=(0,1)):
+def Bernoulli(data, name, shape=1, ranges=(0, 1)):
     """
     Constructs a bernoulli distributions with RV = X ~ Bernoulli(p)
 
     Returns: Tuple[Pymc3.distributions.Bernoulli, Tuple[String, float]]
     ----------
         - Returns a tuple with Bernoulli distributions paired with the name and probability
-    
+
     Parameters:
     ----------
     name: str
@@ -194,15 +205,16 @@ def Bernoulli(data, name, shape=1, ranges=(0,1)):
     shape: int
         - The dimensionality of the distribution
     """
-    probability = st.floats(min_value=0.0010004043579101562, max_value=0.990234375,allow_infinity=False, allow_nan=False,width=16)
+    probability = st.floats(min_value=0.0010004043579101562,
+                            max_value=0.990234375, allow_infinity=False, allow_nan=False, width=16)
     p = data.draw(probability)
     if shape > 1:
         a = dist.Bernoulli(name=name, p=p, shape=shape)
     else:
         a = dist.Bernoulli(name=name, p=p)
     b = ["Bernoulli", p]
-    return (a,b)
-    
+    return (a, b)
+
 
 def Geometric(data, name, shape=1, ranges=(1, np.inf)):
     """
@@ -211,7 +223,7 @@ def Geometric(data, name, shape=1, ranges=(1, np.inf)):
     Returns: Tuple[Pymc3.distributions.Geometric, Tuple[String, float]]
     ----------
         - Returns a tuple with geometric distributions paired with the name and probability
-    
+
     Parameters:
     ----------
     name: str
@@ -221,16 +233,17 @@ def Geometric(data, name, shape=1, ranges=(1, np.inf)):
     shape: int
         - The dimensionality of the distribution
     """
-    l,h = ranges
-    mean = lambda p: 1/p
-    probability = st.floats(min_value=0.0010004043579101562, max_value=0.990234375,allow_infinity=False, allow_nan=False,width=16).filter(lambda x: l <= mean(x) <= h)
+    l, h = ranges
+    def mean(p): return 1/p
+    probability = st.floats(min_value=0.0010004043579101562, max_value=0.990234375,
+                            allow_infinity=False, allow_nan=False, width=16).filter(lambda x: l <= mean(x) <= h)
     p = data.draw(probability)
     if shape > 1:
         a = dist.Geometric(name=name, p=p, shape=shape)
     else:
         a = dist.Geometric(name=name, p=p)
     b = ["Geometric", p]
-    return (a,b)
+    return (a, b)
 
 
 def BetaBinomial(data, name, shape=1, ranges=(1, np.inf)):
@@ -240,7 +253,7 @@ def BetaBinomial(data, name, shape=1, ranges=(1, np.inf)):
     Returns: Tuple[Pymc3.distributions.BetaBinomial, Tuple[String, int, float, float]]
     ----------
         - Returns a tuple with distributions paired with the [name, number, alpha, beta]
-    
+
     Parameters:
     ----------
     name: str
@@ -250,11 +263,13 @@ def BetaBinomial(data, name, shape=1, ranges=(1, np.inf)):
     shape: int
         - The dimensionality of the distribution
     """
-    l,h = ranges
-    mean = lambda n,a,b: (n*a)/(a+b)
+    l, h = ranges
+    def mean(n, a, b): return (n*a)/(a+b)
     ints = st.integers(min_value=l, max_value=10000)
-    positive_float = st.floats(min_value=0.0999755859375, max_value=10000,allow_infinity=False, allow_nan=False,width=16)
-    tuples = st.tuples(ints,positive_float,positive_float).map(sorted).filter(lambda x: l <= mean(x[0],x[1],x[2]) <= h)
+    positive_float = st.floats(min_value=0.0999755859375, max_value=10000,
+                               allow_infinity=False, allow_nan=False, width=16)
+    tuples = st.tuples(ints, positive_float, positive_float).map(
+        sorted).filter(lambda x: l <= mean(x[0], x[1], x[2]) <= h)
     n = data.draw(ints)
     alpha = data.draw(positive_float)
     beta = data.draw(positive_float)
@@ -263,7 +278,7 @@ def BetaBinomial(data, name, shape=1, ranges=(1, np.inf)):
     else:
         a = dist.BetaBinomial(name, alpha=alpha, beta=beta, n=n)
     b = ["BetaBinomial", n, alpha, beta]
-    return (a,b)
+    return (a, b)
 
 
 def Poisson(data, name, shape=1, ranges=(0, np.inf)):
@@ -273,7 +288,7 @@ def Poisson(data, name, shape=1, ranges=(0, np.inf)):
     Returns: Tuple[Pymc3.distributions.Poisson, Tuple[String, float]]
     ----------
         - Returns a tuple with distributions paired with the [name, mu]
-    
+
     Parameters:
     ----------
     name: str
@@ -283,15 +298,16 @@ def Poisson(data, name, shape=1, ranges=(0, np.inf)):
     shape: int
         - The dimensionality of the distribution
     """
-    l,h = ranges
-    non_negativ_float = st.floats(min_value=l, max_value=10000,allow_infinity=False, allow_nan=False,width=16).filter(lambda x: l <= x <= h)
+    l, h = ranges
+    non_negativ_float = st.floats(min_value=l, max_value=10000, allow_infinity=False,
+                                  allow_nan=False, width=16).filter(lambda x: l <= x <= h)
     mu = data.draw(non_negativ_float)
     if shape > 1:
         a = dist.Poisson(name, mu=mu, shape=shape)
     else:
         a = dist.Poisson(name, mu=mu)
     b = ["Poisson", mu]
-    return (a,b) 
+    return (a, b)
 
 
 def DiscreteUniform(data, name, ranges=(-np.inf, np.inf), shape=1):
@@ -301,7 +317,7 @@ def DiscreteUniform(data, name, ranges=(-np.inf, np.inf), shape=1):
     Returns: Tuple[Pymc3.distributions.DiscreteUniform, Tuple[String, int, int]]
     ----------
         - Returns a tuple with distributions paired with the [name, lower, upper]
-    
+
     Parameters:
     ----------
     name: str
@@ -315,16 +331,18 @@ def DiscreteUniform(data, name, ranges=(-np.inf, np.inf), shape=1):
     low = low if low != -np.inf else -1000
     high = high if high != np.inf else 1000
     values = st.integers(min_value=low, max_value=high)
-    mean = lambda l,h: (h+l)/2
+    def mean(l, h): return (h+l)/2
     size = (st.tuples(values, values)
-                .map(sorted)
-                .filter(lambda x: x[0] < x[1] and  low <= mean(x[0],x[1]) <= high))
+            .map(sorted)
+            .filter(lambda x: x[0] < x[1] and low <= mean(x[0], x[1]) <= high))
     lower, upper = data.draw(size)
     a = dist.DiscreteUniform(name, lower, upper)
     b = ["DiscreteUniform", lower, upper]
-    return (a,b)
+    return (a, b)
 
 # Float Distributions
+
+
 def Normal(data, name, shape=1, ranges=(0, 100)):
     """
     Constructs a Normal distributions with RV = X ~ Normal(µ,sigma)
@@ -332,7 +350,7 @@ def Normal(data, name, shape=1, ranges=(0, 100)):
     Returns: Tuple[Pymc3.distributions.Normal, Tuple[String, float, float]]
     ----------
         - Returns a tuple with distributions paired with the [name, mu, sigma]
-    
+
     Parameters:
     ----------
     name: str
@@ -348,25 +366,28 @@ def Normal(data, name, shape=1, ranges=(0, 100)):
     low = low if low != -np.inf else -1000
     high = high if high != np.inf else 1000
 
-    floats = st.floats(allow_infinity=False, allow_nan=False, min_value=low, max_value=high,width=16)
-    positive_floats = st.floats(min_value=0.0999755859375,allow_infinity=False, allow_nan=False,max_value=high-low,width=16)
+    floats = st.floats(allow_infinity=False, allow_nan=False,
+                       min_value=low, max_value=high, width=16)
+    positive_floats = st.floats(
+        min_value=0.0999755859375, allow_infinity=False, allow_nan=False, max_value=high-low, width=16)
 
-    mean = lambda mu, sigma: mu
-    values = st.tuples(floats, positive_floats).filter(lambda x: low <= mean(x[0], x[1]) <= high)
+    def mean(mu, sigma): return mu
+    values = st.tuples(floats, positive_floats).filter(
+        lambda x: low <= mean(x[0], x[1]) <= high)
     mu, sigma = data.draw(values)
     a = dist.Normal(name=name, mu=mu, sigma=sigma, shape=shape)
-    b = ["Normal", mu,sigma]
-    return (a,b)
+    b = ["Normal", mu, sigma]
+    return (a, b)
 
 
-def Uniform(data, name, shape=1, ranges=(0,100)):
+def Uniform(data, name, shape=1, ranges=(0, 100)):
     """
     Constructs a Uniform distributions with RV = X ~ Uniform(l,u)
 
     Returns: Tuple[Pymc3.distributions.Uniform, Tuple[String, int, int]]
     ----------
         - Returns a tuple with distributions paired with the [name, lower, upper]
-    
+
     Parameters:
     ----------
     name: str
@@ -379,15 +400,17 @@ def Uniform(data, name, shape=1, ranges=(0,100)):
     low, high = ranges
     low = low if low != -np.inf else -1000
     high = high if high != np.inf else 1000
-    floats = st.floats(allow_infinity=False, allow_nan=False, min_value=low, max_value=high,width=16)
-    mean = lambda a,b: (a+b)/2
+    floats = st.floats(allow_infinity=False, allow_nan=False,
+                       min_value=low, max_value=high, width=16)
+
+    def mean(a, b): return (a+b)/2
     size = (st.tuples(floats, floats)
-                .map(sorted)
-                .filter(lambda x: x[0] < x[1] and low <= mean(x[0],x[1]) <= high))
+            .map(sorted)
+            .filter(lambda x: x[0] < x[1] and low <= mean(x[0], x[1]) <= high))
     lower, upper = data.draw(size)
     a = dist.Uniform(name, lower=lower, upper=upper, shape=shape)
     b = ["Uniform", lower, upper]
-    return (a,b)
+    return (a, b)
 
 
 def TruncatedNormal(data, name, shape=1, ranges=(-np.inf, np.inf)):
@@ -397,7 +420,7 @@ def TruncatedNormal(data, name, shape=1, ranges=(-np.inf, np.inf)):
     Returns: Tuple[Pymc3.distributions.TruncatedNormal, Tuple[String, float, float, int, int]]
     ----------
         - Returns a tuple with distributions paired with the [name, mu, sigma, lower, upper]
-    
+
     Parameters:
     ----------
     name: str
@@ -410,17 +433,20 @@ def TruncatedNormal(data, name, shape=1, ranges=(-np.inf, np.inf)):
     low, high = ranges
     low = low if low != -np.inf else -1000
     high = high if high != np.inf else 1000
-    floats = st.floats(allow_infinity=False, allow_nan=False, min_value=low, max_value=high,width=16).filter(lambda x: low <= x <= high)
-    positive_floats = st.floats(min_value=0.0999755859375,allow_infinity=False, allow_nan=False,max_value=high-low,width=16)
+    floats = st.floats(allow_infinity=False, allow_nan=False, min_value=low,
+                       max_value=high, width=16).filter(lambda x: low <= x <= high)
+    positive_floats = st.floats(
+        min_value=0.0999755859375, allow_infinity=False, allow_nan=False, max_value=high-low, width=16)
     size = (st.tuples(st.integers(min_value=low, max_value=high), st.integers(min_value=low, max_value=high))
-                .map(sorted)
-                .filter(lambda x: x[0] < x[1]))
+            .map(sorted)
+            .filter(lambda x: x[0] < x[1]))
     mu = data.draw(floats)
     sigma = data.draw(positive_floats)
     lower, upper = data.draw(size)
-    a = dist.TruncatedNormal(name, mu=mu, sigma=sigma, lower=lower, upper=upper, shape=shape)
+    a = dist.TruncatedNormal(name, mu=mu, sigma=sigma,
+                             lower=lower, upper=upper, shape=shape)
     b = ["TruncatedNormal", mu, sigma, lower, upper]
-    return (a,b)
+    return (a, b)
 
 
 def Beta(data, name, shape=1):
@@ -430,7 +456,7 @@ def Beta(data, name, shape=1):
     Returns: Tuple[Pymc3.distributions.Beta, Tuple[String, float, float]]
     ----------
         - Returns a tuple with distributions paired with the [name, alpha, beta]
-    
+
     Parameters:
     ----------
     name: str
@@ -440,12 +466,13 @@ def Beta(data, name, shape=1):
     shape: int
         - The dimensionality of the distribution
     """
-    positive_floats = st.floats(min_value=0.0999755859375,allow_infinity=False, allow_nan=False,max_value=40,width=16)
+    positive_floats = st.floats(
+        min_value=0.0999755859375, allow_infinity=False, allow_nan=False, max_value=40, width=16)
     alpha = data.draw(positive_floats)
     beta = data.draw(positive_floats)
     a = dist.Beta(name, alpha=alpha, beta=beta, shape=shape)
     b = ["Beta", alpha, beta]
-    return (a,b)
+    return (a, b)
 
 
 def Exponential(data, name, shape=1, ranges=(-np.inf, np.inf)):
@@ -455,7 +482,7 @@ def Exponential(data, name, shape=1, ranges=(-np.inf, np.inf)):
     Returns: Tuple[Pymc3.distributions.Exponential, Tuple[String, float]]
     ----------
         - Returns a tuple with distributions paired with the [name, lambda]
-    
+
     Parameters:
     ----------
     name: str
@@ -468,16 +495,17 @@ def Exponential(data, name, shape=1, ranges=(-np.inf, np.inf)):
     low, high = ranges
     low = low if low != -np.inf else 0
     high = high if high != np.inf else 1000
-        
-    positive_floats = st.floats(min_value=0.0999755859375,allow_infinity=False, allow_nan=False,max_value=50,width=16).filter(lambda x: low <= 1/x <= high)
+
+    positive_floats = st.floats(min_value=0.0999755859375, allow_infinity=False,
+                                allow_nan=False, max_value=50, width=16).filter(lambda x: low <= 1/x <= high)
     lam = data.draw(positive_floats)
     a = dist.Exponential(name, lam, shape=shape)
     if not low:
         shift = pm.Deterministic(name+"_shifted", a+low)
         b = ["Exponential", lam]
-        return (a,b)
+        return (a, b)
     b = ["Exponential", lam]
-    return (a,b)
+    return (a, b)
 
 
 def Laplace(data, name, shape=1, ranges=(-np.inf, np.inf)):
@@ -487,7 +515,7 @@ def Laplace(data, name, shape=1, ranges=(-np.inf, np.inf)):
     Returns: Tuple[Pymc3.distributions.Laplace, Tuple[String, float, float]]
     ----------
         - Returns a tuple with distributions paired with the [name, mu, b]
-    
+
     Parameters:
     ----------
     name: str
@@ -500,13 +528,15 @@ def Laplace(data, name, shape=1, ranges=(-np.inf, np.inf)):
     low, high = ranges
     low = low if low != -np.inf else -1000
     high = high if high != np.inf else 1000
-    floats = st.floats(allow_infinity=False, allow_nan=False, min_value=low, max_value=high,width=16).filter(lambda x: low <= x <= high)
-    positive_floats = st.floats(min_value=0.0999755859375,allow_infinity=False, allow_nan=False,max_value=50,width=16)
+    floats = st.floats(allow_infinity=False, allow_nan=False, min_value=low,
+                       max_value=high, width=16).filter(lambda x: low <= x <= high)
+    positive_floats = st.floats(
+        min_value=0.0999755859375, allow_infinity=False, allow_nan=False, max_value=50, width=16)
     mu = data.draw(floats)
     bi = data.draw(positive_floats)
     a = dist.Laplace(name, mu=mu, b=bi, shape=shape)
     b = ["Laplace", mu, bi]
-    return (a,b)
+    return (a, b)
 
 
 def StudentT(data, name, shape=1, ranges=(-np.inf, np.inf)):
@@ -516,7 +546,7 @@ def StudentT(data, name, shape=1, ranges=(-np.inf, np.inf)):
     Returns: Tuple[Pymc3.distributions.StudentT, Tuple[String, float, float, float]]
     ----------
         - Returns a tuple with distributions paired with the [name, nu, mu, sigma]
-    
+
     Parameters:
     ----------
     name: str
@@ -529,14 +559,16 @@ def StudentT(data, name, shape=1, ranges=(-np.inf, np.inf)):
     low, high = ranges
     low = low if low != -np.inf else -1000
     high = high if high != np.inf else 1000
-    positive_floats = st.floats(min_value=0.0999755859375,allow_infinity=False, allow_nan=False,max_value=high-low,width=16)
-    floats = st.floats(allow_infinity=False, allow_nan=False, min_value=low, max_value=high,width=16)
+    positive_floats = st.floats(
+        min_value=0.0999755859375, allow_infinity=False, allow_nan=False, max_value=high-low, width=16)
+    floats = st.floats(allow_infinity=False, allow_nan=False,
+                       min_value=low, max_value=high, width=16)
     nu = data.draw(positive_floats)
     mu = data.draw(floats)
     sigma = data.draw(positive_floats)
     a = dist.StudentT(name, nu=nu, mu=mu, sigma=sigma, shape=shape)
     b = ["StudentT", nu, mu, sigma]
-    return (a,b)
+    return (a, b)
 
 
 def Cauchy(data, name, shape=1, ranges=(-np.inf, np.inf)):
@@ -546,7 +578,7 @@ def Cauchy(data, name, shape=1, ranges=(-np.inf, np.inf)):
     Returns: Tuple[Pymc3.distributions.Cauchy, Tuple[String, float, float]]
     ----------
         - Returns a tuple with distributions paired with the [name, alpha, beta]
-    
+
     Parameters:
     ----------
     name: str
@@ -559,13 +591,15 @@ def Cauchy(data, name, shape=1, ranges=(-np.inf, np.inf)):
     low, high = ranges
     low = low if low != -np.inf else -1000
     high = high if high != np.inf else 1000
-    positive_floats = st.floats(min_value=0.0999755859375,allow_infinity=False, allow_nan=False,max_value=10,width=16)
-    floats = st.floats(allow_infinity=False, allow_nan=False, min_value=low, max_value=high,width=16)
+    positive_floats = st.floats(
+        min_value=0.0999755859375, allow_infinity=False, allow_nan=False, max_value=10, width=16)
+    floats = st.floats(allow_infinity=False, allow_nan=False,
+                       min_value=low, max_value=high, width=16)
     alpha = data.draw(floats)
     beta = data.draw(positive_floats)
     a = dist.Cauchy(name, alpha=alpha, beta=beta, shape=shape)
     b = ["Cauchy", alpha, beta]
-    return (a,b)
+    return (a, b)
 
 
 def Gamma(data, name, shape=1):
@@ -575,7 +609,7 @@ def Gamma(data, name, shape=1):
     Returns: Tuple[Pymc3.distributions.Gamma, Tuple[String, float, float]]
     ----------
         - Returns a tuple with distributions paired with the [name, alpha, beta]
-    
+
     Parameters:
     ----------
     name: str
@@ -585,9 +619,11 @@ def Gamma(data, name, shape=1):
     shape: int
         - The dimensionality of the distribution
     """
-    positive_floats = st.floats(min_value=0.0999755859375,allow_infinity=False, allow_nan=False,max_value=40,width=16)
-    values = st.tuples(positive_floats, positive_floats).map(sorted).filter(lambda x: low <= (x[0]/x[1]) <= high)
+    positive_floats = st.floats(
+        min_value=0.0999755859375, allow_infinity=False, allow_nan=False, max_value=40, width=16)
+    values = st.tuples(positive_floats, positive_floats).map(
+        sorted).filter(lambda x: low <= (x[0]/x[1]) <= high)
     alpha, beta = data.draw(values)
     a = dist.Gamma(name, alpha, beta, shape=shape)
     b = ["Gamma", alpha, beta]
-    return (a,b)
+    return (a, b)

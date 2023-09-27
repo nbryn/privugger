@@ -16,7 +16,7 @@ def mi_sklearn(
     Binding for estimating mutual information using the `mutual_info_regression` function from `sklearn`.
 
     Concretely, this function computes mutual information as I(var_names[0]; var_names[1]).      
-   
+
 
     Parameters
     ----------
@@ -39,12 +39,13 @@ def mi_sklearn(
     """
     trace1 = trace2 = []
     if input_inferencedata:
-        assert len(var_names)==2, "var_names must contain exactly two elements"
-        trace1 = trace.posterior[var_names[0]].values.flatten().reshape(-1,1)
+        assert len(var_names) == 2, "var_names must contain exactly two elements"
+        trace1 = trace.posterior[var_names[0]].values.flatten().reshape(-1, 1)
         trace2 = trace.posterior[var_names[1]].values.flatten()
     else:
-        assert len(trace) == 2, "trace must containt two subtraces for each of each random variables to compute mutual information"
-        trace1 = trace[0].reshape(-1,1)
+        assert len(
+            trace) == 2, "trace must containt two subtraces for each of each random variables to compute mutual information"
+        trace1 = trace[0].reshape(-1, 1)
         trace2 = trace[1]
 
     mi_nat = mutual_info_regression(trace1,
