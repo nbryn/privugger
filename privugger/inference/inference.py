@@ -237,19 +237,17 @@ def infer(prog, cores=2, chains=2, draws=500, method="pymc3", return_model=False
         if (program is not None):
             ftp = FunctionTypeDecorator()
             decorators = _from_distributions_to_theano(input_specs, output)
+            lifted_programs_with_import = [ftp.wrap_with_theano_import(program) for program in ftp.lift(program, decorators)]
+            print(lifted_programs_with_import)
 
-            lifted_program = ftp.lift(program, decorators)
-            lifted_program_w_import = ftp.wrap_with_theano_import(
-                lifted_program)
-
-            # print(astor.to_source(lifted_program_w_import))
-
-            f = open("typed.py", "w")
-            f.write(astor.to_source(lifted_program_w_import))
-            f.close()
-            import typed as t
-            importlib.reload(t)
-
+            for i, program in enumerate(lifted_programs_with_import):
+                f = open(f'typed{i+1}.py', "w")
+                f.write(astor.to_source(program))
+                f.close()
+                import typed as t
+                importlib.reload(t)
+            
+            return
             #################
             ## Create model #
             #################

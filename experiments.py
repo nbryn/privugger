@@ -16,7 +16,7 @@ sys.path.append(os.path.join("../../"))
 # privugger library
 
 
-def avg(ages):
+def avg_or_sum(ages):
     if len(ages) > 5:
         return ages.sum()
     
@@ -30,7 +30,7 @@ ds = pv.Dataset(input_specs=[ages])
 program = pv.Program('output',
                      dataset=ds,
                      output_type=pv.Float,
-                     function=avg)
+                     function=avg_or_sum)
 
 program.add_observation('output==44', precision=0.1)
 

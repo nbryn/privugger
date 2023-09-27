@@ -44,6 +44,7 @@ class FunctionTypeDecorator(ast.NodeTransformer):
 
         new_function = ast.Module(body=[ast.FunctionDef(
             name='method', decorator_list=[], args=args, body=[program, returns])])
+
         return new_function
         # print(astor.to_source(new_function))
         # print(ast.dump(new_function))
@@ -108,24 +109,66 @@ class FunctionTypeDecorator(ast.NodeTransformer):
 
             os.remove("temp.py")
 
-        # if("lambda")
-
         function_def = self.get_function_def_ast(tree.body)
-
         node = self.create_decorated_function(
             function_def, decorators[0], decorators[1][0])
 
-        if (isinstance(tree.body[0], ast.Import)):
-            imports = tree.body[0]
-            wrapped_node = self.simple_method_wrap(
-                node, tree.body[1].name, tree.body[1].args)
-            wrapped_node.body.insert(0, imports)
+        sub_programs = self.get_sub_programs(node)
+        final = []
+        # TODO: Missing original function def between between new function def and return
+        # When remove if need to link if parent node and body
+        for program in sub_programs:
+            if (isinstance(tree.body[0], ast.Import)):
+                imports = tree.body[0]
+                wrapped_program = self.simple_method_wrap(program, tree.body[1].name, tree.body[1].args)
+                wrapped_program.body.insert(0, imports)
+                final.append(wrapped_program)
 
-        else:
-            wrapped_node = self.simple_method_wrap(
-                node, tree.body[0].name, tree.body[0].args)
+            else:
+                wrapped_program = self.simple_method_wrap(program, tree.body[0].name, tree.body[0].args)
+                final.append(wrapped_program)
 
-        return wrapped_node
+
+        wrapped_node = self.simple_method_wrap(node, tree.body[0].name, tree.body[0].args)
+        print("FINAL: " + str(ast.dump(final[0])))
+        print("---------------------------------------------------")
+        print("NODE: " + str(ast.dump(wrapped_node)))
+        print("-----------------------------------------------")
+        """ f1 = open(f'typed1.py', "w")
+        f1.write(astor.to_source(final[0]))
+        f1.close()
+        
+        f = open(f'typed.py', "w")
+        f.write(astor.to_source(final[0]))
+        f.close() """
+        return final
+
+    def get_sub_programs(self, node):
+        sub_programs = []
+        for child_node in node.body:
+            if (self.has_return(child_node)):
+                sub_programs.append(child_node)
+        
+        # sub_programs is all tree with a return node
+        # Need to remove intermediate statements such as if
+        # Recursively?
+        for i, node in enumerate(sub_programs):
+            if isinstance(node, ast.If):
+                sub_programs[i] = node.body
+
+        return sub_programs
+
+    def has_return(self, node):
+        # TODO: Other nodes than return that doesn't have a body?
+        if isinstance(node, ast.Return): return True
+        
+        for child_node in node.body:
+            if isinstance(child_node, ast.Return):
+                return True
+
+            return self.has_return(child_node)
+
+        return False
 
     def translate_type(self, p_type):
         """
@@ -180,25 +223,19 @@ class FunctionTypeDecorator(ast.NodeTransformer):
         theano_otype = self.translate_type(otype)
         return (theano_itypes, theano_otype)
 
-    def find_return_ast(self, body):
+    def wrap_returns(self, body, otype):
         """
-        This function will find the return statements in original program
+        This function will wrap the return statements in the original program
 
         """
-        return_list = []
         for i in range(len(body)):
             if (isinstance(body[i], ast.Return)):
-                return_list.append((body[i], i))
+                body[i] = self.wrap_output_type(body[i].value, otype)
             else:
-                pass
-                # print(body[i])
-        if (len(return_list) > 0):
-            return return_list
-        else:
-            return None
+                self.wrap_returns(body[i].body, otype)
 
     def wrap_output_type(self, out_body, out_type):
-        if ((isinstance(out_body, ast.Name) or isinstance(out_body, ast.Compare) or isinstance(out_body, ast.ListComp) or isinstance(out_body, ast.BinOp))):
+        if ((isinstance(out_body, ast.Name) or isinstance(out_body, ast.Compare) or isinstance(out_body, ast.ListComp) or isinstance(out_body, ast.BinOp) or isinstance(out_body, ast.Call))):
             if (out_type == 'int'):
                 o_attr = 'int64'
             # elif(out_type == 'float'):
@@ -229,6 +266,7 @@ class FunctionTypeDecorator(ast.NodeTransformer):
             )), attr=o_attr, ctx=ast.Load()), args=[out_body.orelse], keywords=[])
             out_body.body = wrapped_body
             out_body.orelse = wrapped_orelse
+
             return (ast.Return(out_body))
 
         return (ast.Return(out_body))
@@ -261,11 +299,8 @@ class FunctionTypeDecorator(ast.NodeTransformer):
             value=ast.Attribute(value=ast.Name(id='theano', ctx=ast.Load()), attr='compile', ctx=ast.Load()), attr='ops', ctx=ast.Load()), attr='as_op', ctx=ast.Load()), args=[], keywords=theano_keywords)]
 
         # return_body, index = self.find_return_ast(node.body)
-        return_list = self.find_return_ast(node.body)
-        if (return_list is not None):
-            for r in return_list:
-                wrapped_return_body = self.wrap_output_type(r[0].value, otype)
-                node.body[r[1]] = wrapped_return_body
+        self.wrap_returns(node.body, otype)
+
         node.decorator_list = theano_decorator_list
         return node
 
