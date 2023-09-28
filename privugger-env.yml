@@ -2,9 +2,13 @@ name: privugger
 channels:
   - defaults
 dependencies:
+  - numpy=1.19.5
   - scikit-learn=1.1.2
-  - pymc=4.1.5
+  - theano=1.0.4
+  - pymc3
   - hypothesis=5.35.3
   - astor=0.8.1
   - pytest=6.2.5
   - arviz
+  - scipy=1.7
+  - hypothesis=5.35.3

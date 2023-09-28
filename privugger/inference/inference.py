@@ -7,7 +7,6 @@ from privugger.transformer.PyMC3.program_output import *
 
 import astor
 import pymc3 as pm
-import theano.tensor as tt
 import arviz as az
 import os
 import importlib
@@ -148,7 +147,7 @@ def stack(distributions,  type_of_dist, axis=0):
         stacked_variables = []
         for i in range(len(distributions)):
             stacked_variables.append(
-                distributions[i].pymc3_dist(distriutions[i].name, []))
+                distributions[i].pymc3_dist(distributions[i].name, []))
             global_priors.append(pm.math.stack(stacked_variables, axis=axis))
 
     global stacked
@@ -238,70 +237,65 @@ def infer(prog, cores=2, chains=2, draws=500, method="pymc3", return_model=False
             ftp = FunctionTypeDecorator()
             decorators = _from_distributions_to_theano(input_specs, output)
             lifted_programs_with_import = [ftp.wrap_with_theano_import(program) for program in ftp.lift(program, decorators)]
-            print(lifted_programs_with_import)
-
-            for i, program in enumerate(lifted_programs_with_import):
-                f = open(f'typed{i+1}.py', "w")
-                f.write(astor.to_source(program))
+            
+            traces = []
+            for i, sub_program in enumerate(lifted_programs_with_import):
+                f = open("typed.py", "w")
+                f.write(astor.to_source(sub_program))
                 f.close()
                 import typed as t
                 importlib.reload(t)
+                os.rename("typed.py", f'typed{i+1}.py')
+                
             
-            return
             #################
             ## Create model #
             #################
-            trace = None
-            with global_model:
+                model = pm.Model()
+                with model:
 
-                priors = []
-                hyper_params = []
+                    priors = []
+                    hyper_params = []
+                    for idx in range(num_specs):
+                        prior = input_specs[idx]
 
-                for idx in range(num_specs):
-                    prior = input_specs[idx]
+                        # This is for the case when our prior comes from a concatenated/stacked distribution
+                        if (isinstance(prior, str)):
+                            continue
 
-                    # This is for the case when our prior comes from a concatenated/stacked distribution
-                    if (isinstance(prior, str)):
-                        continue
+                        if (prior.is_hyper_param):
+                            hyper_params.append((prior, prior.name))
+                        else:
+                            params = prior.get_params()
+                            hypers_for_prior = []
+                            for p_idx in range(len(params)):
+                                p = params[p_idx]
+                                if (isinstance(p, Continuous) or isinstance(p, Discrete)):
+                                    for hyper in hyper_params:
+                                        if (p.name == hyper[1]):
+                                            hypers_for_prior.append((hyper[0], hyper[1], p_idx))
 
-                    if (prior.is_hyper_param):
-                        hyper_params.append((prior, prior.name))
-                    else:
-                        params = prior.get_params()
-                        hypers_for_prior = []
-                        for p_idx in range(len(params)):
-                            p = params[p_idx]
-                            if (isinstance(p, Continuous) or isinstance(p, Discrete)):
-                                for hyper in hyper_params:
-                                    if (p.name == hyper[1]):
-                                        hypers_for_prior.append(
-                                            (hyper[0], hyper[1], p_idx))
+                            global_priors.append(prior.pymc3_dist(
+                                prior.name, hypers_for_prior))
+                    
+                    temp1 = pm.Deterministic(prog.name, t.method(*global_priors))
+                    prog.execute_observations(prior, temp1)
+                    print("SAMPLING")
+                    trace1 = pm.sample(draws=draws, chains=chains, cores=cores, return_inferencedata=True)
+                    traces.append(trace1)
+                    global_priors = []
+                    
 
-                        # priors.append(prior.pymc3_dist(prior.name, hypers_for_prior))
-                        global_priors.append(prior.pymc3_dist(
-                            prior.name, hypers_for_prior))
-
-                if (program is not None):
-                    # output = pm.Deterministic("output", t.method(*priors) )
-                    output = pm.Deterministic(
-                        prog.name, t.method(*global_priors))
-
-                # Add observations
-                prog.execute_observations(prior, output)
-
-                if (return_model):
-                    return global_model
-                else:
-                    trace = pm.sample(draws=draws, chains=chains,
-                                      cores=cores, return_inferencedata=True)
-
-                concatenated = False
-                stacked = False
-                global_model_set = False
-                del global_model
-                del global_priors
-                # global_model = pm.Model()
-                return trace
+            if (return_model):
+                return global_model
+            
+            concatenated = False
+            stacked = False
+            global_model_set = False
+            del global_model
+            del global_priors
+            
+            return traces
 
     elif method == "scipy":
         if isinstance(program, str):

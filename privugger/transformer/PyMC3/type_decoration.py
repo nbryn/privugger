@@ -3,6 +3,7 @@ import astor
 import sys
 import inspect
 import os
+import copy
 import privugger.transformer.PyMC3.annotation_types as at
 from privugger.transformer.PyMC3.theano_types import TheanoToken
 
@@ -37,8 +38,7 @@ class FunctionTypeDecorator(ast.NodeTransformer):
         arg_identifiers = []
         for a in args.args:
             arg_identifiers.append(a.arg)
-
-        # func_returns = self.get_function_return(program.body)
+            
         returns = ast.Return(value=ast.Call(args=[ast.arguments(args=arg_identifiers, defaults=[
         ], vararg=None, kwarg=None)], func=ast.Name(id=name, ctx=ast.Load()), keywords=[]))
 
@@ -46,8 +46,6 @@ class FunctionTypeDecorator(ast.NodeTransformer):
             name='method', decorator_list=[], args=args, body=[program, returns])])
 
         return new_function
-        # print(astor.to_source(new_function))
-        # print(ast.dump(new_function))
 
     def lift(self, program, decorators):
         """
@@ -114,48 +112,42 @@ class FunctionTypeDecorator(ast.NodeTransformer):
             function_def, decorators[0], decorators[1][0])
 
         sub_programs = self.get_sub_programs(node)
-        final = []
-        # TODO: Missing original function def between between new function def and return
-        # When remove if need to link if parent node and body
+        programs_wrapped = []
         for program in sub_programs:
             if (isinstance(tree.body[0], ast.Import)):
                 imports = tree.body[0]
                 wrapped_program = self.simple_method_wrap(program, tree.body[1].name, tree.body[1].args)
                 wrapped_program.body.insert(0, imports)
-                final.append(wrapped_program)
+                programs_wrapped.append(wrapped_program)
 
             else:
                 wrapped_program = self.simple_method_wrap(program, tree.body[0].name, tree.body[0].args)
-                final.append(wrapped_program)
+                programs_wrapped.append(wrapped_program)
 
-
-        wrapped_node = self.simple_method_wrap(node, tree.body[0].name, tree.body[0].args)
-        print("FINAL: " + str(ast.dump(final[0])))
-        print("---------------------------------------------------")
-        print("NODE: " + str(ast.dump(wrapped_node)))
-        print("-----------------------------------------------")
-        """ f1 = open(f'typed1.py', "w")
-        f1.write(astor.to_source(final[0]))
-        f1.close()
         
-        f = open(f'typed.py', "w")
-        f.write(astor.to_source(final[0]))
-        f.close() """
-        return final
+        return programs_wrapped
 
-    def get_sub_programs(self, node):
+    def get_sub_programs(self, root):
         sub_programs = []
-        for child_node in node.body:
+        for child_node in root.body:
             if (self.has_return(child_node)):
                 sub_programs.append(child_node)
         
         # sub_programs is all tree with a return node
         # Need to remove intermediate statements such as if
-        # Recursively?
+        # Currently only removes if. Recursive?
+        # Also wraps all sub programs in top node
         for i, node in enumerate(sub_programs):
             if isinstance(node, ast.If):
-                sub_programs[i] = node.body
-
+                new_node = copy.copy(root)
+                new_node.body = node.body
+                sub_programs[i] = new_node
+            
+            elif isinstance(node, ast.Return):
+                new_node = copy.copy(root)
+                new_node.body = [node]
+                sub_programs[i] = new_node    
+                
         return sub_programs
 
     def has_return(self, node):
@@ -163,10 +155,7 @@ class FunctionTypeDecorator(ast.NodeTransformer):
         if isinstance(node, ast.Return): return True
         
         for child_node in node.body:
-            if isinstance(child_node, ast.Return):
-                return True
-
-            return self.has_return(child_node)
+            return isinstance(child_node, ast.Return) or self.has_return(child_node)
 
         return False
 
