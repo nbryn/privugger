@@ -7,9 +7,8 @@ import copy
 import privugger.transformer.PyMC3.annotation_types as at
 from privugger.transformer.PyMC3.theano_types import TheanoToken
 
-
 class FunctionTypeDecorator(ast.NodeTransformer):
-
+    file_name = "temp.py"
     function_name = None
     itypes = []
     otypes = []
@@ -70,66 +69,73 @@ class FunctionTypeDecorator(ast.NodeTransformer):
             file.close()
 
         else:
-            res = "".join(inspect.getsourcelines(program)[0])
-            if "lambda" in res:
-                res = res.replace(" ", "")
-                start = res.find("lambda")
-                end_draws = res.find("draws")
-                end_chains = res.find("chains")
-                end_cores = res.find("cores")
+            source_code = "".join(inspect.getsourcelines(program)[0])
+            if "lambda" in source_code:
+                source_code = source_code.replace(" ", "")
+                start = source_code.find("lambda")
+                end_draws = source_code.find("draws")
+                end_chains = source_code.find("chains")
+                end_cores = source_code.find("cores")
 
                 # NOTE this is when we only use the default values
                 if (end_draws == -1 and end_chains == -1 and end_cores == -1):
 
                     # TODO There are bugs if the program is defined elsewhere and ends with ")"
-                    end = len(res)
+                    end = len(source_code)
 
-                    res = res[start:end-1].strip("\\n")
+                    source_code = source_code[start:end-1].strip("\\n")
 
                 else:
                     values = [end_draws, end_chains, end_cores]
                     # NOTE filter all the values that are not set
                     positive_values = list(filter(lambda x: x != -1, values))
                     end = min(positive_values)
-                    res = res[start:end-1].strip("\\n")
+                    source_code = source_code[start:end-1].strip("\\n")
 
-            if ("lambda" == res[:6]):
-                form = res.strip().split(":")
-                res = f"def function({form[0][6:]}): \n return {form[1]}"
+            if ("lambda" == source_code[:6]):
+                form = source_code.strip().split(":")
+                source_code = f"def function({form[0][6:]}): \n return {form[1]}"
 
-            elif ("def" != res[:3]):
+            elif ("def" != source_code[:3]):
                 raise TypeError(
                     "The program needs to be a path to a file, a lambda or a function")
 
-            with open("temp.py", "w") as file:
-                file.write(res)
+            with open(self.file_name, "w") as file:
+                file.write(source_code)
+                            
             tree = ast.parse(open("temp.py").read())
 
-            os.remove("temp.py")
 
         function_def = self.get_function_def_ast(tree.body)
-        node = self.create_decorated_function(
-            function_def, decorators[0], decorators[1][0])
+        node = self.create_decorated_function(function_def, decorators[0], decorators[1][0])
 
-        sub_programs = self.get_sub_programs(node)
+        sub_programs = self.get_sub_programs(node, source_code)
+        print(sub_programs[0][0])
+        print(ast.dump(sub_programs[0][1]))
         programs_wrapped = []
-        for program in sub_programs:
+        for (line_number, program) in sub_programs:
             if (isinstance(tree.body[0], ast.Import)):
                 imports = tree.body[0]
                 wrapped_program = self.simple_method_wrap(program, tree.body[1].name, tree.body[1].args)
                 wrapped_program.body.insert(0, imports)
-                programs_wrapped.append(wrapped_program)
+                programs_wrapped.append((line_number, wrapped_program))
 
             else:
                 wrapped_program = self.simple_method_wrap(program, tree.body[0].name, tree.body[0].args)
-                programs_wrapped.append(wrapped_program)
+                programs_wrapped.append((line_number, wrapped_program))
 
-        
+        os.remove("temp.py")
         return programs_wrapped
 
-    def get_sub_programs(self, root):
+    # How to map return line number to node?
+    # DFS sufficient?
+    def get_sub_programs(self, root, source_code):
+        return_line_numbers = self.get_return_line_numbers(source_code) 
         sub_programs = []
         for child_node in root.body:
+            # This needs to handle nested returns
+            # Make sure only one return per subprogram
+            # Can we use ast.walk(tree) instead?
             if (self.has_return(child_node)):
                 sub_programs.append(child_node)
         
@@ -141,12 +147,12 @@ class FunctionTypeDecorator(ast.NodeTransformer):
             if isinstance(node, ast.If):
                 new_node = copy.copy(root)
                 new_node.body = node.body
-                sub_programs[i] = new_node
+                sub_programs[i] = (return_line_numbers[i], new_node)
             
             elif isinstance(node, ast.Return):
                 new_node = copy.copy(root)
                 new_node.body = [node]
-                sub_programs[i] = new_node    
+                sub_programs[i] = (return_line_numbers[i], new_node)    
                 
         return sub_programs
 
@@ -158,6 +164,18 @@ class FunctionTypeDecorator(ast.NodeTransformer):
             return isinstance(child_node, ast.Return) or self.has_return(child_node)
 
         return False
+    
+    def get_return_line_numbers(self, source):
+        module = compile(source, self.file_name, "exec")
+        namespace = {}
+        exec(module, namespace)
+
+        function_name = [name for name, obj in namespace.items() if inspect.isfunction(obj)][0]
+        function_source = inspect.getsource(namespace[function_name])
+        lines = function_source.split('\n')
+        return_line_numbers = [i + 1 for i, line in enumerate(lines) if line.strip().startswith("return")]
+        
+        return return_line_numbers
 
     def translate_type(self, p_type):
         """
@@ -324,8 +342,7 @@ class FunctionTypeDecorator(ast.NodeTransformer):
                 return (at.Float())
             else:
 
-                raise TyperError(
-                    "Seems that there is a problem with the annotation")
+                raise TyperError("Seems that there is a problem with the annotation")
 
     def visit_FunctionDef(self, node):
         """

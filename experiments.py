@@ -1,4 +1,3 @@
-# disable FutureWarnings to have a cleaner output
 import sys
 import os
 import privugger as pv
@@ -6,6 +5,8 @@ import matplotlib.pyplot as plt
 import arviz as az
 import numpy as np
 import warnings
+
+# disable FutureWarnings to have a cleaner output
 warnings.simplefilter(action='ignore', category=FutureWarning)
 
 # move to previouse directory to access the privugger code
@@ -19,9 +20,7 @@ def avg_or_sum(ages):
 
 
 ages = pv.Normal('ages', mu=35, std=2, num_elements=100)
-
 ds = pv.Dataset(input_specs=[ages])
-
 program = pv.Program('output',
                      dataset=ds,
                      output_type=pv.Float,
@@ -35,7 +34,8 @@ traces = pv.infer(program,
                  method='pymc3')
 
 # plot the inferred distribution of the output
-for trace in traces:
+for (line_number, trace) in traces:
+    print(line_number)
     az.plot_posterior(trace, var_names=['output'],
                       hdi_prob=.95, point_estimate='mode')
     plt.show()

@@ -236,10 +236,10 @@ def infer(prog, cores=2, chains=2, draws=500, method="pymc3", return_model=False
         if (program is not None):
             ftp = FunctionTypeDecorator()
             decorators = _from_distributions_to_theano(input_specs, output)
-            lifted_programs_with_import = [ftp.wrap_with_theano_import(program) for program in ftp.lift(program, decorators)]
+            lifted_programs_with_import = [(line_number, ftp.wrap_with_theano_import(program)) for (line_number, program) in ftp.lift(program, decorators)]
             
             traces = []
-            for i, sub_program in enumerate(lifted_programs_with_import):
+            for i, (line_number, sub_program) in enumerate(lifted_programs_with_import):
                 f = open("typed.py", "w")
                 f.write(astor.to_source(sub_program))
                 f.close()
@@ -278,11 +278,11 @@ def infer(prog, cores=2, chains=2, draws=500, method="pymc3", return_model=False
                             global_priors.append(prior.pymc3_dist(
                                 prior.name, hypers_for_prior))
                     
-                    temp1 = pm.Deterministic(prog.name, t.method(*global_priors))
-                    prog.execute_observations(prior, temp1)
+                    temp = pm.Deterministic(prog.name, t.method(*global_priors))
+                    prog.execute_observations(prior, temp)
                     print("SAMPLING")
-                    trace1 = pm.sample(draws=draws, chains=chains, cores=cores, return_inferencedata=True)
-                    traces.append(trace1)
+                    trace = pm.sample(draws=draws, chains=chains, cores=cores, return_inferencedata=True)
+                    traces.append((line_number, trace))
                     global_priors = []
                     
 
