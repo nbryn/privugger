@@ -115,13 +115,13 @@ class Program:
         def inner(distribution):
             if cons == ">":
                 pm.Normal(f"cons_{i}", distribution >
-                          value,  precision, observed=1)
+                          value, precision, observed=1)
             elif cons == ">=":
                 pm.Normal(f"cons_{i}", distribution >=
                           value, precision, observed=1)
             elif cons == "<":
                 pm.Normal(f"cons_{i}", distribution <
-                          value,  precision, observed=1)
+                          value, precision, observed=1)
             elif cons == "<=":
                 pm.Normal(f"cons_{i}", distribution <=
                           value, precision, observed=1)

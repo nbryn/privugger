@@ -5,6 +5,7 @@ import matplotlib.pyplot as plt
 import arviz as az
 import numpy as np
 import warnings
+import pymc3 as pm
 
 # disable FutureWarnings to have a cleaner output
 warnings.simplefilter(action='ignore', category=FutureWarning)
@@ -22,58 +23,69 @@ sys.path.append(os.path.join("../../"))
 #   - Retrieve line numbers after return has been inserted
 def problem(ages):
     result = None
-    if len(ages) < 5:
-        result = ages.sum()
-    
-    elif len(ages) < 10:
-        result = ages[0]
+    if ages[0] < 35:
+        subset = ages[:20]
+        result = subset.sum() / subset.size
+        
+    if ages[0] < 40:
+        subset = ages[:40]
+        result = subset.sum() / subset.size
     
     else:
-        result = (ages.sum()) / (ages.size)
-            
+        subset = ages[:60]
+        result = subset.sum() / subset.size
+           
     return result
 
 
 
 # Handle AST node with return that isn't a 'top level' node
 def analyze_in_progress(ages):
-    if len(ages) < 5:
-        total = ages.sum()
-        return total
+    if ages[0] < 35:
+        subset = ages[:20]
+        avg = subset.sum() / subset.size
+        return avg
     
-    if len(ages) < 10:
-        if len(ages) < 12:
-            first = ages[0]
-            return first
+    if ages[0] < 40:
+        if ages[0] < 42:
+            subset = ages[:40]
+            avg = subset.sum() / subset.size
+            return avg
         else:
-            second = ages[1]
-            return second
+            subset = ages[:50]
+            avg = subset.sum() / subset.size
+            return avg
     
-    elif len(ages) < 15:
-        third = ages[2]
-        return third
+    elif ages[0] < 45:
+        subset = ages[:60]
+        avg = subset.sum() / subset.size
+        return avg
             
     return ages.sum() / ages.size
-
-
 
 
 def analyze_works(ages):
-    if len(ages) < 5:
-        total = ages.sum()
-        return total
+    if ages[0] < 35:
+        subset = ages[:20]
+        avg = subset.sum() / subset.size
+        return avg
     
-    if len(ages) < 10:
-        first = ages[0]
-        return first
+    if ages[0] < 40:
+        subset = ages[:40]
+        avg = subset.sum() / subset.size
+        return avg + 2
     
-    elif len(ages) < 15:
-        second = ages[1]
-        return second
+    elif ages[0] < 45:
+        subset = ages[:60]
+        avg = subset.sum() / subset.size
+        return avg
             
     return ages.sum() / ages.size
 
-
+""" basic_model = pm.Model()
+with basic_model:
+    x = pm.Normal("t", mu=0, sd=1, shape=100)
+    print(x) """
 
 ages = pv.Normal('ages', mu=35, std=2, num_elements=100)
 ds = pv.Dataset(input_specs=[ages])
@@ -84,14 +96,16 @@ program = pv.Program('output',
 
 program.add_observation('output==44', precision=0.1)
 
-traces = pv.infer(program,
+trace = pv.infer(program,
                  cores=4,
                  draws=50,
                  method='pymc3')
 
+
+
 # plot the inferred distribution of the output
-for (line_number, trace) in traces:
-    print(line_number)
-    az.plot_posterior(trace, var_names=['output'],
-                      hdi_prob=.95, point_estimate='mode')
-    plt.show()
+
+#print(line_number)
+az.plot_posterior(trace, var_names=['output'],
+                    hdi_prob=.95, point_estimate='mode')
+plt.show()

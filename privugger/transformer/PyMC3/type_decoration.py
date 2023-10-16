@@ -1,6 +1,5 @@
 import ast
 import astor
-import sys
 import inspect
 import os
 import copy
@@ -46,7 +45,7 @@ class FunctionTypeDecorator(ast.NodeTransformer):
 
         return new_function
 
-    def lift(self, program, decorators):
+    def lift(self, program, decorators, split_into_subprograms):
         """
         This funtion provides another path to program lifting, when the decoration types are given directly. 
         The function lifts the program to be used within a pymc3 model.
@@ -104,15 +103,67 @@ class FunctionTypeDecorator(ast.NodeTransformer):
                 file.write(source_code)
                             
             tree = ast.parse(open("temp.py").read())
-
-
+        
         function_def = self.get_function_def_ast(tree.body)
-        node = self.create_decorated_function(function_def, decorators[0], decorators[1][0])
+        root = self.create_decorated_function(function_def, decorators[0], decorators[1][0])    
+        if split_into_subprograms: 
+            return self.split_into_subprograms(tree, source_code, root)
+        
+        # Collect all variable assignments and returns
+        # Discard returns that just return a variable
+        # Store whole variable node. node.targets has variable name
+        vars_and_returns = self.collect_vars_and_returns(root)
+        return
+        
+        
+        if isinstance(tree.body[0], ast.Import):
+            imports = tree.body[0]
+            wrapped_node = self.simple_method_wrap(root, tree.body[1].name, tree.body[1].args)
+            wrapped_node.body.insert(0, imports)
+                
+        else:
+            wrapped_node = self.simple_method_wrap(root, tree.body[0].name, tree.body[0].args)
+        
+        os.remove("temp.py")
+        return wrapped_node
+    
+    def collect_vars_and_returns(self, root):
+        vars_and_returns = []
+        for child_node in ast.walk(root):
+            if isinstance(child_node, ast.Assign):
+                vars_and_returns.append(child_node)
+            
+            if isinstance(child_node, ast.Return):
+                #print(ast.dump(child_node.value.args[0]))
+                if not isinstance(child_node.value.args[0], ast.Name):
+                    print(ast.dump(child_node))
+                    vars_and_returns.append(child_node)
 
+        
+        return vars_and_returns
+    
+    def get_ifs_with_line_numbers(self, root, source_code):
+        line_numbers = self.get_line_numbers(source_code, "if")
+        ifs = []
+        self.collect_ifs(root, ifs)
+                        
+        return zip(line_numbers, ifs)
+        
+    def collect_ifs(self, node, lst):
+        if isinstance(node, ast.Assign): return
+        
+        if isinstance(node, ast.If):
+            lst.append(node)
+        
+        if hasattr(node, "orelse"):
+            for child_node in node.orelse:
+                self.collect_ifs(child_node, lst)                
+
+    def split_into_subprograms(self, tree, source_code, node):
         sub_programs = self.get_sub_programs(node, source_code)
         programs_wrapped = []
         for (line_number, program) in sub_programs:
-            if (isinstance(tree.body[0], ast.Import)):
+            if isinstance(tree.body[0], ast.Import):
                 imports = tree.body[0]
                 wrapped_program = self.simple_method_wrap(program, tree.body[1].name, tree.body[1].args)
                 wrapped_program.body.insert(0, imports)
@@ -125,16 +176,12 @@ class FunctionTypeDecorator(ast.NodeTransformer):
         os.remove("temp.py")
         return programs_wrapped
 
-    # How to map return line number to node?
-    # DFS sufficient?
     def get_sub_programs(self, root, source_code):
-        return_line_numbers = self.get_return_line_numbers(source_code)
+        return_line_numbers = self.get_line_numbers(source_code, "return")
         sub_programs = []
-        #print(ast.dump(root))
         for child_node in root.body:
             if isinstance(child_node, ast.Assign): continue
             
-
             # Can we use ast.walk(tree) instead?
             # This needs to handle nested returns
             # This only check whether top-levels nodes have return statements
@@ -146,7 +193,6 @@ class FunctionTypeDecorator(ast.NodeTransformer):
                     if self.has_return(node):
                         sub_programs.append(node)
         
-        #print(sub_programs)
         # sub_programs is all trees with a return node
         # Need to remove intermediate statements such as if
         # But keep assignments etc
@@ -176,7 +222,7 @@ class FunctionTypeDecorator(ast.NodeTransformer):
 
         return False
     
-    def get_return_line_numbers(self, source):
+    def get_line_numbers(self, source, statement):
         module = compile(source, self.file_name, "exec")
         namespace = {}
         exec(module, namespace)
@@ -184,7 +230,7 @@ class FunctionTypeDecorator(ast.NodeTransformer):
         function_name = [name for name, obj in namespace.items() if inspect.isfunction(obj)][0]
         function_source = inspect.getsource(namespace[function_name])
         lines = function_source.split('\n')
-        return_line_numbers = [i + 1 for i, line in enumerate(lines) if line.strip().startswith("return")]
+        return_line_numbers = [i + 1 for i, line in enumerate(lines) if line.strip().startswith(statement)]
         
         return return_line_numbers
 

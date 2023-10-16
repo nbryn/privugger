@@ -185,7 +185,7 @@ def sample_prior(model, samples=50):
         return prior_checks
 
 
-def infer(prog, cores=2, chains=2, draws=500, method="pymc3", return_model=False):
+def infer(prog, cores=2, chains=2, draws=500, method="pymc3", return_model=False, split_into_subprograms=False):
     """
 
     Parameters
@@ -236,50 +236,49 @@ def infer(prog, cores=2, chains=2, draws=500, method="pymc3", return_model=False
         if (program is not None):
             ftp = FunctionTypeDecorator()
             decorators = _from_distributions_to_theano(input_specs, output)
-            lifted_programs_with_import = [(line_number, ftp.wrap_with_theano_import(program)) for (line_number, program) in ftp.lift(program, decorators)]
+            if not split_into_subprograms:
+                lifted_program = ftp.lift(program, decorators, False)
+                lifted_program_w_import = ftp.wrap_with_theano_import(lifted_program)
+        
+                program_to_sample = create_program_file(lifted_program_w_import)
+                
+                model = pm.Model()
+                trace = None
+                with model:
+                    # Create deterministic variable for each if
+                    prior = get_prior(num_specs, input_specs)
+                
+                if return_model:
+                    return model
+                
+                concatenated = False
+                stacked = False
+                global_model_set = False
+                del global_model
+                del global_priors
+                
+                return trace
             
+            lifted_programs_with_import = [(line_number, ftp.wrap_with_theano_import(program)) for (line_number, program) in ftp.lift(program, decorators, True)]
             traces = []
             for i, (line_number, sub_program) in enumerate(lifted_programs_with_import):
-                f = open("typed.py", "w")
-                f.write(astor.to_source(sub_program))
-                f.close()
-                import typed as t
-                importlib.reload(t)
+                program_to_sample = create_program_file(sub_program)
                 os.rename("typed.py", f'typed{i+1}.py')
                 
-            
-            #################
-            ## Create model #
-            #################
                 model = pm.Model()
                 with model:
 
-                    priors = []
-                    hyper_params = []
-                    for idx in range(num_specs):
-                        prior = input_specs[idx]
-
-                        # This is for the case when our prior comes from a concatenated/stacked distribution
-                        if (isinstance(prior, str)):
-                            continue
-
-                        if (prior.is_hyper_param):
-                            hyper_params.append((prior, prior.name))
-                        else:
-                            params = prior.get_params()
-                            hypers_for_prior = []
-                            for p_idx in range(len(params)):
-                                p = params[p_idx]
-                                if (isinstance(p, Continuous) or isinstance(p, Discrete)):
-                                    for hyper in hyper_params:
-                                        if (p.name == hyper[1]):
-                                            hypers_for_prior.append((hyper[0], hyper[1], p_idx))
-
-                            global_priors.append(prior.pymc3_dist(
-                                prior.name, hypers_for_prior))
-                    
-                    temp = pm.Deterministic(prog.name, t.method(*global_priors))
-                    prog.execute_observations(prior, temp)
+                    # prior is distribution specifed by attacker
+                    # global_priors is list of distributions for each param in 'program_to_sample.method
+                    #   - each element is a distribution with num_elements
+                    #   - Why are we alling program_to_sample.method with a distribution?
+                    prior = get_prior(num_specs, input_specs)
+                    print(global_priors[0].random())
+                    print(*global_priors)
+                    print(program_to_sample.method(global_priors[0].random()))
+                    return
+                    output = pm.Deterministic(prog.name, program_to_sample.method(*global_priors))
+                    prog.execute_observations(prior, output)
                     print("SAMPLING")
                     trace = pm.sample(draws=draws, chains=chains, cores=cores, return_inferencedata=True)
                     traces.append((line_number, trace))
@@ -297,6 +296,7 @@ def infer(prog, cores=2, chains=2, draws=500, method="pymc3", return_model=False
             
             return traces
 
+    # Remove as not supported?
     elif method == "scipy":
         if isinstance(program, str):
             import re
@@ -310,15 +310,15 @@ def infer(prog, cores=2, chains=2, draws=500, method="pymc3", return_model=False
                     new.write(l)
             f.close()
             new.close()
-            import typed as t
-            importlib.reload(t)
-            f = t.method
+            import typed as program_to_sample
+            importlib.reload(program_to_sample)
+            f = program_to_sample.method
         else:
             f = program
         priors = []
         trace = {}
         for idx in range(num_specs):
-            name, dist = input_specs[idx].scipy_dist(input_sepcs[idx].name)
+            name, dist = input_specs[idx].scipy_dist(input_specs[idx].name)
             dist = dist(draws)
             priors.append(dist)
             trace[name] = dist
@@ -331,3 +331,38 @@ def infer(prog, cores=2, chains=2, draws=500, method="pymc3", return_model=False
         return az.convert_to_inference_data(trace)
     else:
         raise TypeError("Unsupported probabilistic framework")
+
+
+def get_prior(num_specs, input_specs):
+    hyper_params = []
+    for idx in range(num_specs):
+        prior = input_specs[idx]
+
+        # This is for the case when our prior comes from a concatenated/stacked distribution
+        if (isinstance(prior, str)):
+            continue
+
+        if (prior.is_hyper_param):
+            hyper_params.append((prior, prior.name))
+        else:
+            params = prior.get_params()
+            hypers_for_prior = []
+            for p_idx in range(len(params)):
+                p = params[p_idx]
+                if (isinstance(p, Continuous) or isinstance(p, Discrete)):
+                    for hyper in hyper_params:
+                        if (p.name == hyper[1]):
+                            hypers_for_prior.append((hyper[0], hyper[1], p_idx))
+
+            global_priors.append(prior.pymc3_dist(prior.name, hypers_for_prior))
+    
+    return prior
+
+def create_program_file(program):
+    f = open("typed.py", "w")
+    f.write(astor.to_source(program))
+    f.close()
+    import typed as program_to_sample 
+    importlib.reload(program_to_sample)
+    
+    return program_to_sample
