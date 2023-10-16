@@ -6,6 +6,7 @@ import numpy as np
 def method(ages):
 
     @theano.compile.ops.as_op(itypes=[tt.dvector], otypes=[tt.dscalar])
-    def avg_or_sum(ages):
-        return np.array(ages.sum() / ages.size)
-    return avg_or_sum(ages)
+    def analyze_works(ages):
+        first = ages[0]
+        return np.array(first)
+    return analyze_works(ages)

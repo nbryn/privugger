@@ -110,8 +110,6 @@ class FunctionTypeDecorator(ast.NodeTransformer):
         node = self.create_decorated_function(function_def, decorators[0], decorators[1][0])
 
         sub_programs = self.get_sub_programs(node, source_code)
-        print(sub_programs[0][0])
-        print(ast.dump(sub_programs[0][1]))
         programs_wrapped = []
         for (line_number, program) in sub_programs:
             if (isinstance(tree.body[0], ast.Import)):
@@ -130,17 +128,28 @@ class FunctionTypeDecorator(ast.NodeTransformer):
     # How to map return line number to node?
     # DFS sufficient?
     def get_sub_programs(self, root, source_code):
-        return_line_numbers = self.get_return_line_numbers(source_code) 
+        return_line_numbers = self.get_return_line_numbers(source_code)
         sub_programs = []
+        #print(ast.dump(root))
         for child_node in root.body:
-            # This needs to handle nested returns
-            # Make sure only one return per subprogram
+            if isinstance(child_node, ast.Assign): continue
+            
+
             # Can we use ast.walk(tree) instead?
-            if (self.has_return(child_node)):
+            # This needs to handle nested returns
+            # This only check whether top-levels nodes have return statements
+            if self.has_return(child_node):
                 sub_programs.append(child_node)
+            
+            if hasattr(child_node, "orelse"):
+                for node in child_node.orelse:
+                    if self.has_return(node):
+                        sub_programs.append(node)
         
-        # sub_programs is all tree with a return node
+        #print(sub_programs)
+        # sub_programs is all trees with a return node
         # Need to remove intermediate statements such as if
+        # But keep assignments etc
         # Currently only removes if. Recursive?
         # Also wraps all sub programs in top node
         for i, node in enumerate(sub_programs):
@@ -156,11 +165,13 @@ class FunctionTypeDecorator(ast.NodeTransformer):
                 
         return sub_programs
 
+    # Nodes without body: return, assign
+    # Need to handle orelse here
     def has_return(self, node):
-        # TODO: Other nodes than return that doesn't have a body?
         if isinstance(node, ast.Return): return True
         
         for child_node in node.body:
+            if isinstance(child_node, ast.Assign): continue
             return isinstance(child_node, ast.Return) or self.has_return(child_node)
 
         return False
@@ -230,16 +241,25 @@ class FunctionTypeDecorator(ast.NodeTransformer):
         theano_otype = self.translate_type(otype)
         return (theano_itypes, theano_otype)
 
-    def wrap_returns(self, body, otype):
+    def wrap_returns(self, node, otype):
         """
         This function will wrap the return statements in the original program
 
         """
-        for i in range(len(body)):
-            if (isinstance(body[i], ast.Return)):
-                body[i] = self.wrap_output_type(body[i].value, otype)
-            else:
-                self.wrap_returns(body[i].body, otype)
+        if not hasattr(node, "body"): return
+        
+        # TODO: Concat node.body with node.orelse?
+        for i in range(len(node.body)):
+            if (isinstance(node.body[i], ast.Return)):
+                node.body[i] = self.wrap_output_type(node.body[i].value, otype)
+            else: 
+                self.wrap_returns(node.body[i], otype)
+                if hasattr(node, "orelse"):
+                    for i in range(len(node.orelse)):
+                        if (isinstance(node.orelse[i], ast.Return)):
+                            node.orelse[i] = self.wrap_output_type(node.orelse[i].value, otype)
+                        else:
+                            self.wrap_returns(node.orelse[i], otype)
 
     def wrap_output_type(self, out_body, out_type):
         if ((isinstance(out_body, ast.Name) or isinstance(out_body, ast.Compare) or isinstance(out_body, ast.ListComp) or isinstance(out_body, ast.BinOp) or isinstance(out_body, ast.Call))):
@@ -305,10 +325,9 @@ class FunctionTypeDecorator(ast.NodeTransformer):
         theano_decorator_list = [ast.Call(func=ast.Attribute(value=ast.Attribute(
             value=ast.Attribute(value=ast.Name(id='theano', ctx=ast.Load()), attr='compile', ctx=ast.Load()), attr='ops', ctx=ast.Load()), attr='as_op', ctx=ast.Load()), args=[], keywords=theano_keywords)]
 
-        # return_body, index = self.find_return_ast(node.body)
-        self.wrap_returns(node.body, otype)
-
+        self.wrap_returns(node, otype)
         node.decorator_list = theano_decorator_list
+        
         return node
 
     def get_next_annotation(self, arg):
