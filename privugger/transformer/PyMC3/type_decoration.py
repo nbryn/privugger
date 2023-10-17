@@ -3,7 +3,9 @@ import astor
 import inspect
 import os
 import copy
+from collections import OrderedDict
 import privugger.transformer.PyMC3.annotation_types as at
+import privugger.transformer.PyMC3.ast_types as ast_types
 from privugger.transformer.PyMC3.theano_types import TheanoToken
 
 class FunctionTypeDecorator(ast.NodeTransformer):
@@ -105,17 +107,29 @@ class FunctionTypeDecorator(ast.NodeTransformer):
             tree = ast.parse(open("temp.py").read())
         
         function_def = self.get_function_def_ast(tree.body)
+        function_params = list(map(lambda x: x.arg, function_def.args.args))
+        
+        if not split_into_subprograms:
+            os.remove("temp.py")
+            vars_and_returns = self.collect_vars_and_returns(tree)
+            # Need to find all other variable this node depend on
+            # Find all names in node.values
+            # Need to know function parameters
+            # If variable depend on function param, continue.
+            # - Value will be supplied later
+            
+            dependency_map = {}
+            for node in vars_and_returns:
+                self.collect_dependencies(node, dependency_map)
+
+            return (function_params, dict(sorted(dependency_map.items(), key=lambda x: x[0][1])))
+        
         root = self.create_decorated_function(function_def, decorators[0], decorators[1][0])    
-        if split_into_subprograms: 
-            return self.split_into_subprograms(tree, source_code, root)
+         
+        os.remove("temp.py")
+        return self.split_into_subprograms(tree, source_code, root)
         
-        # Collect all variable assignments and returns
-        # Discard returns that just return a variable
-        # Store whole variable node. node.targets has variable name
-        vars_and_returns = self.collect_vars_and_returns(root)
-        return
-        
-        
+    
         if isinstance(tree.body[0], ast.Import):
             imports = tree.body[0]
             wrapped_node = self.simple_method_wrap(root, tree.body[1].name, tree.body[1].args)
@@ -126,7 +140,37 @@ class FunctionTypeDecorator(ast.NodeTransformer):
         
         os.remove("temp.py")
         return wrapped_node
-    
+
+    # Need to be recursive to handled nested dependencies
+    # Should be expanded to handle more ast types
+    def collect_dependencies(self, node, dependencies):
+        value = node.value
+        var_name = (node.targets[0].id if hasattr(node, "targets") else "return", node.lineno)
+        # This assumes there is only one target
+        if isinstance(value, ast.Subscript):
+            subscript = ast_types.Subscript()
+            subscript.dependency_name = value.value.id
+            # Assumes lower and upper has constant values
+            if hasattr(value.slice.lower, "value"):
+                subscript.lower = value.slice.lower.value
+                
+            if hasattr(value.slice.upper, "value"):
+                subscript.upper = value.slice.upper.value
+            
+            dependencies[var_name] = subscript
+
+        if isinstance(value, ast.BinOp):
+            binop = ast_types.BinOp()
+            binop.operation = value.op
+            if isinstance(value.left.func, ast.Attribute):
+                binop.left = ast_types.Variable(value.left.func.value.id, value.left.func.attr)
+                 
+            if isinstance(value.right, ast.Attribute):
+                binop.right = ast_types.Variable(value.right.value.id, value.right.attr)
+                
+            dependencies[var_name] = binop
+        
+            
     def collect_vars_and_returns(self, root):
         vars_and_returns = []
         for child_node in ast.walk(root):
@@ -134,12 +178,9 @@ class FunctionTypeDecorator(ast.NodeTransformer):
                 vars_and_returns.append(child_node)
             
             if isinstance(child_node, ast.Return):
-                #print(ast.dump(child_node.value.args[0]))
-                if not isinstance(child_node.value.args[0], ast.Name):
-                    print(ast.dump(child_node))
+                if not isinstance(child_node.value, ast.Name):                    
                     vars_and_returns.append(child_node)
 
-        
         return vars_and_returns
     
     def get_ifs_with_line_numbers(self, root, source_code):

@@ -73,7 +73,7 @@ def analyze_works(ages):
     if ages[0] < 40:
         subset = ages[:40]
         avg = subset.sum() / subset.size
-        return avg + 2
+        return avg
     
     elif ages[0] < 45:
         subset = ages[:60]
@@ -96,16 +96,15 @@ program = pv.Program('output',
 
 program.add_observation('output==44', precision=0.1)
 
-trace = pv.infer(program,
+trace: az.InferenceData = pv.infer(program,
                  cores=4,
                  draws=50,
                  method='pymc3')
 
 
-
+print(trace.posterior)
 # plot the inferred distribution of the output
 
-#print(line_number)
-az.plot_posterior(trace, var_names=['output'],
+az.plot_posterior(trace, var_names=['return17'],
                     hdi_prob=.95, point_estimate='mode')
 plt.show()

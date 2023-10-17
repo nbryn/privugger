@@ -8,8 +8,11 @@ from privugger.transformer.PyMC3.program_output import *
 import astor
 import pymc3 as pm
 import arviz as az
+import numpy as np
 import os
 import importlib
+import theano.tensor as tt
+import theano
 
 # Create a global pymc3 model and list of priors
 global_model = None
@@ -237,19 +240,99 @@ def infer(prog, cores=2, chains=2, draws=500, method="pymc3", return_model=False
             ftp = FunctionTypeDecorator()
             decorators = _from_distributions_to_theano(input_specs, output)
             if not split_into_subprograms:
-                lifted_program = ftp.lift(program, decorators, False)
-                lifted_program_w_import = ftp.wrap_with_theano_import(lifted_program)
-        
-                program_to_sample = create_program_file(lifted_program_w_import)
-                
+                (program_params, dependency_map) = ftp.lift(program, decorators, False)
                 model = pm.Model()
                 trace = None
                 with model:
-                    # Create deterministic variable for each if
+                    # Create deterministic variable for each var and return
+                    # Execute observation for each variable?
                     prior = get_prior(num_specs, input_specs)
-                
+                    model_vars = []
+                    print(dependency_map)
+                    for var_name_and_lineno, dependency in dependency_map.items():
+                        (var_name, line_number) = var_name_and_lineno
+                        var_name2 = f"{var_name} - {line_number}"
+                        #print("NEW")
+                        #print(var_name)
+                        if isinstance(dependency, ast_types.Subscript):
+                            # Need to have optypes constructed ad hoc
+                            # Need to change function name
+                            @theano.compile.ops.as_op(itypes=[tt.dvector], otypes=[tt.dvector])
+                            def temp1(priors):
+                                var = None
+                                if dependency.dependency_name in program_params:
+                                    var = priors
+                                elif dependency.dependency_name in model_vars:
+                                    var = next(x for x in model_vars.reverse() if var_name == x)
+                                
+                                # else: Need to look up value of variable in ast tree (constant etc)                    
+                                var = var[dependency.lower:dependency.upper]
+                                model_vars.append((var_name, var))
+                                return np.array(var)
+                            
+                            t = pm.Deterministic(var_name + str(line_number), temp1(global_priors[0]))
+                            #prog.execute_observations(prior, temp)  
+                            
+                        
+                        elif isinstance(dependency, ast_types.BinOp):
+    
+                            @theano.compile.ops.as_op(itypes=[tt.dvector], otypes=[tt.dscalar])
+                            def temp2(priors):
+                                var = None
+                                left = None
+                                var_from_model = next((x for x in reversed(model_vars) if x[0] == dependency.left.dependency_name), None)
+                                if dependency.left.dependency_name in program_params:
+                                    left = priors
+                                
+                                elif var_from_model != None:
+                                    left = var_from_model[1]
+                                
+                                # else: Need to look up value of variable in ast tree (constant etc)
+                                
+                                if dependency.left.function == "sum":
+                                    left = sum(left)
+                                
+                                elif dependency.left.function == "size":
+                                    left = len(left)
+                                
+                                right = None
+                                var_from_model = next((x for x in reversed(model_vars) if x[0] == dependency.left.dependency_name), None)
+                                if dependency.right.dependency_name in program_params:
+                                    right = priors
+                                
+                                elif var_from_model != None:
+                                    right = var_from_model[1]
+                                
+                                # else: Need to look up value of variable in ast tree (constant etc)
+                                
+                                if dependency.right.function == "sum":
+                                    right = sum(right)
+                                
+                                elif dependency.right.function == "size":
+                                    right = len(right)
+                                
+                                if isinstance(dependency.operation, ast.Div):
+                                    var = left / right
+                                
+                                elif isinstance(dependency.operation, ast.Add):
+                                    var = left + right
+                                    
+                                model_vars.append((var_name, var)) 
+                                
+                                return np.array(var)
+                            
+                            t = pm.Deterministic(var_name + str(line_number), temp2(global_priors[0]))
+                            if line_number == 17:
+                                print("HERE")
+                                prog.execute_observations(prior, t)  
+                               
+
+                                  
+                    print("SAMPLING")
+                    trace = pm.sample(draws=draws, chains=chains, cores=cores, return_inferencedata=True)    
+     
                 if return_model:
-                    return model
+                    return global_model
                 
                 concatenated = False
                 stacked = False
@@ -273,10 +356,6 @@ def infer(prog, cores=2, chains=2, draws=500, method="pymc3", return_model=False
                     #   - each element is a distribution with num_elements
                     #   - Why are we alling program_to_sample.method with a distribution?
                     prior = get_prior(num_specs, input_specs)
-                    print(global_priors[0].random())
-                    print(*global_priors)
-                    print(program_to_sample.method(global_priors[0].random()))
-                    return
                     output = pm.Deterministic(prog.name, program_to_sample.method(*global_priors))
                     prog.execute_observations(prior, output)
                     print("SAMPLING")
