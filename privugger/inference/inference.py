@@ -7,6 +7,7 @@ from privugger.transformer.PyMC3.program_output import *
 
 import astor
 import pymc3 as pm
+import pymc3.math as pm_math
 import arviz as az
 import numpy as np
 import os
@@ -248,86 +249,80 @@ def infer(prog, cores=2, chains=2, draws=500, method="pymc3", return_model=False
                     # Execute observation for each variable?
                     prior = get_prior(num_specs, input_specs)
                     model_vars = []
-                    print(dependency_map)
+                    
+                    # Need to move loop out of model
+                    # Create function for each variable that depend on function param
+                    # Construct function outside of model and then call
+                    # We need to do the translation inside the model
                     for var_name_and_lineno, dependency in dependency_map.items():
                         (var_name, line_number) = var_name_and_lineno
                         var_name2 = f"{var_name} - {line_number}"
                         #print("NEW")
                         #print(var_name)
                         if isinstance(dependency, ast_types.Subscript):
-                            # Need to have optypes constructed ad hoc
-                            # Need to change function name
-                            @theano.compile.ops.as_op(itypes=[tt.dvector], otypes=[tt.dvector])
-                            def temp1(priors):
-                                var = None
-                                if dependency.dependency_name in program_params:
-                                    var = priors
-                                elif dependency.dependency_name in model_vars:
-                                    var = next(x for x in model_vars.reverse() if var_name == x)
-                                
-                                # else: Need to look up value of variable in ast tree (constant etc)                    
-                                var = var[dependency.lower:dependency.upper]
-                                model_vars.append((var_name, var))
-                                return np.array(var)
+                            var = None
+                            if dependency.dependency_name in program_params:
+                                var = global_priors[0]
+                            elif dependency.dependency_name in model_vars:
+                                var = next(x for x in model_vars.reverse() if var_name == x)
                             
-                            t = pm.Deterministic(var_name + str(line_number), temp1(global_priors[0]))
-                            #prog.execute_observations(prior, temp)  
+                            # else: Need to look up value of variable in ast tree (constant etc)                    
                             
+                            var = var[dependency.lower:dependency.upper]
+                            print("FIRST")
+                            print(var)
+                            
+                            t = pm.Deterministic(var_name + str(line_number), tt.as_tensor_variable(var))
+                            model_vars.append((var_name, t))
+                            #prog.execute_observations(prior, temp)                              
                         
                         elif isinstance(dependency, ast_types.BinOp):
-    
-                            @theano.compile.ops.as_op(itypes=[tt.dvector], otypes=[tt.dscalar])
-                            def temp2(priors):
-                                var = None
-                                left = None
-                                var_from_model = next((x for x in reversed(model_vars) if x[0] == dependency.left.dependency_name), None)
-                                if dependency.left.dependency_name in program_params:
-                                    left = priors
-                                
-                                elif var_from_model != None:
-                                    left = var_from_model[1]
-                                
-                                # else: Need to look up value of variable in ast tree (constant etc)
-                                
-                                if dependency.left.function == "sum":
-                                    left = sum(left)
-                                
-                                elif dependency.left.function == "size":
-                                    left = len(left)
-                                
-                                right = None
-                                var_from_model = next((x for x in reversed(model_vars) if x[0] == dependency.left.dependency_name), None)
-                                if dependency.right.dependency_name in program_params:
-                                    right = priors
-                                
-                                elif var_from_model != None:
-                                    right = var_from_model[1]
-                                
-                                # else: Need to look up value of variable in ast tree (constant etc)
-                                
-                                if dependency.right.function == "sum":
-                                    right = sum(right)
-                                
-                                elif dependency.right.function == "size":
-                                    right = len(right)
-                                
-                                if isinstance(dependency.operation, ast.Div):
-                                    var = left / right
-                                
-                                elif isinstance(dependency.operation, ast.Add):
-                                    var = left + right
-                                    
-                                model_vars.append((var_name, var)) 
-                                
-                                return np.array(var)
+                            var = None
+                            left = None
+                            var_from_model = next((x for x in reversed(model_vars) if x[0] == dependency.left.dependency_name), None)
+                            if dependency.left.dependency_name in program_params:
+                                left = global_priors[0]
+                            elif var_from_model != None:
+                                left = var_from_model[1]
                             
-                            t = pm.Deterministic(var_name + str(line_number), temp2(global_priors[0]))
+                            # else: Need to look up value of variable in ast tree (constant etc)
+                            
+                            if dependency.left.function == "sum":
+                                left = pm_math.sum(left) if isinstance(left, tt.TensorVariable) else sum(left)
+                            elif dependency.left.function == "size":    
+                                left = left.shape if isinstance(left, tt.TensorVariable) else len(left)
+                            
+                            right = None
+                            var_from_model = next((x for x in reversed(model_vars) if x[0] == dependency.right.dependency_name), None)
+                            if dependency.right.dependency_name in program_params:
+                                right = global_priors[0]
+                            elif var_from_model != None:
+                                right = var_from_model[1]
+                            
+                            # else: Need to look up value of variable in ast tree (constant etc)
+                            
+                            if dependency.right.function == "sum":
+                                right = pm_math.sum(left) if isinstance(right, tt.TensorVariable) else sum(right)
+                                print(isinstance(right, tt.TensorVariable))
+                            elif dependency.right.function == "size":    
+                                right = right.shape if isinstance(right, tt.TensorVariable) else len(right)
+                                print()
+                            
+                            if isinstance(dependency.operation, ast.Div):
+                                var = left / right
+                            elif isinstance(dependency.operation, ast.Add):
+                                var = left + right
+                            
+                            print("YES")
+                            print(var)
+                            t = pm.Deterministic(var_name + str(line_number), tt.as_tensor_variable(var))
+                            model_vars.append((var_name, t))
+                                                       
                             if line_number == 17:
                                 print("HERE")
                                 prog.execute_observations(prior, t)  
-                               
-
-                                  
+                            
+                    #pm.model_to_graphviz(model)              
                     print("SAMPLING")
                     trace = pm.sample(draws=draws, chains=chains, cores=cores, return_inferencedata=True)    
      

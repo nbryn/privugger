@@ -101,8 +101,8 @@ trace: az.InferenceData = pv.infer(program,
                  draws=50,
                  method='pymc3')
 
-
 print(trace.posterior)
+#print(trace.posterior)
 # plot the inferred distribution of the output
 
 az.plot_posterior(trace, var_names=['return17'],
