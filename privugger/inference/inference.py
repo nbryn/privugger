@@ -269,9 +269,6 @@ def infer(prog, cores=2, chains=2, draws=500, method="pymc3", return_model=False
                             # else: Need to look up value of variable in ast tree (constant etc)                    
                             
                             var = var[dependency.lower:dependency.upper]
-                            print("FIRST")
-                            print(var)
-                            
                             t = pm.Deterministic(var_name + str(line_number), tt.as_tensor_variable(var))
                             model_vars.append((var_name, t))
                             #prog.execute_observations(prior, temp)                              
@@ -303,23 +300,18 @@ def infer(prog, cores=2, chains=2, draws=500, method="pymc3", return_model=False
                             
                             if dependency.right.function == "sum":
                                 right = pm_math.sum(left) if isinstance(right, tt.TensorVariable) else sum(right)
-                                print(isinstance(right, tt.TensorVariable))
                             elif dependency.right.function == "size":    
                                 right = right.shape if isinstance(right, tt.TensorVariable) else len(right)
-                                print()
                             
                             if isinstance(dependency.operation, ast.Div):
                                 var = left / right
                             elif isinstance(dependency.operation, ast.Add):
                                 var = left + right
                             
-                            print("YES")
-                            print(var)
                             t = pm.Deterministic(var_name + str(line_number), tt.as_tensor_variable(var))
                             model_vars.append((var_name, t))
                                                        
                             if line_number == 17:
-                                print("HERE")
                                 prog.execute_observations(prior, t)  
                             
                     #pm.model_to_graphviz(model)              

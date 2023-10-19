@@ -98,13 +98,18 @@ program.add_observation('output==44', precision=0.1)
 
 trace: az.InferenceData = pv.infer(program,
                  cores=4,
-                 draws=50,
+                 draws=10_000,
                  method='pymc3')
 
 print(trace.posterior)
 #print(trace.posterior)
 # plot the inferred distribution of the output
 
+az.plot_posterior(trace, var_names=['avg14'],
+                    hdi_prob=.95, point_estimate='mode')
+
 az.plot_posterior(trace, var_names=['return17'],
                     hdi_prob=.95, point_estimate='mode')
+
+
 plt.show()
