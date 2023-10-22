@@ -13,32 +13,6 @@ warnings.simplefilter(action='ignore', category=FutureWarning)
 # move to previouse directory to access the privugger code
 sys.path.append(os.path.join("../../"))
 
-# Should we handle programs like this in the research project?
-# Problems:
-# - Hard to map AST nodes to line numbers
-#  - (Most) Node don't have a that info
-# Ideas:
-# - Treat intermediate computations as 'programs' 
-#   - Insert return and map to PyMC
-#   - Retrieve line numbers after return has been inserted
-def problem(ages):
-    result = None
-    if ages[0] < 35:
-        subset = ages[:20]
-        result = subset.sum() / subset.size
-        
-    if ages[0] < 40:
-        subset = ages[:40]
-        result = subset.sum() / subset.size
-    
-    else:
-        subset = ages[:60]
-        result = subset.sum() / subset.size
-           
-    return result
-
-
-
 # Handle AST node with return that isn't a 'top level' node
 def analyze_in_progress(ages):
     if ages[0] < 35:
@@ -65,6 +39,7 @@ def analyze_in_progress(ages):
 
 
 def analyze_works(ages):
+    first = ages[5:10].sum()
     if ages[0] < 35:
         subset = ages[:20]
         avg = subset.sum() / subset.size
@@ -79,13 +54,10 @@ def analyze_works(ages):
         subset = ages[:60]
         avg = subset.sum() / subset.size
         return avg
-            
+    
+    second = ages[10:20].sum()
     return ages.sum() / ages.size
 
-""" basic_model = pm.Model()
-with basic_model:
-    x = pm.Normal("t", mu=0, sd=1, shape=100)
-    print(x) """
 
 ages = pv.Normal('ages', mu=35, std=2, num_elements=100)
 ds = pv.Dataset(input_specs=[ages])
