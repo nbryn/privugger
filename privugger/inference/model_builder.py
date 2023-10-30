@@ -21,134 +21,122 @@ class ModelBuilder():
     
     def build(self):
         for var_name_and_lineno, node in self.dependency_map.items():
-            self.create_pycm_var(var_name_and_lineno, node)
+            self.__create_pycm_var(var_name_and_lineno, node)
     
-    def create_pycm_var(self, var_name_and_lineno, node):
+    def __create_pycm_var(self, var_name_and_lineno, node):
         (var_name, line_number) = var_name_and_lineno
         var_name_with_line_number = f"{var_name} - {str(line_number)}"
 
-        var = self.map(var_name, node)
-        pymc_var = pm.Deterministic(var_name_with_line_number, tt.as_tensor_variable(var))
-        self.model_vars.append((var_name, pymc_var))
+        var = self.__map_to_pycm_var(var_name, node)
+        if not isinstance(node, ast_types.If):
+            pymc_var = pm.Deterministic(var_name_with_line_number, tt.as_tensor_variable(var))
+            self.model_vars.append((var_name, pymc_var))
 
-    def map(self, var_name, node):
+    def __map_to_pycm_var(self, var_name, node, add_to_model_vars=False):
+        def helper(func, *args):
+            var = func(*args)
+            if add_to_model_vars:
+                self.model_vars.append((var_name, var))
+            
+            return var
+        
         if isinstance(node, ast_types.Subscript):
-            return self.handle_subscript(var_name, node)
+            return helper(self.__handle_subscript, node)
         
         elif isinstance(node, ast_types.Constant):
             return node.value 
         
         elif isinstance(node, ast_types.Compare):
-            return self.handle_compare(var_name, node)
+            return helper(self.__handle_compare, var_name, node)
         
         elif isinstance(node, ast_types.Index):
-            return self.handle_index(node)                      
+            return helper(self.__handle_index, node)
             
         elif isinstance(node, ast_types.BinOp):
-            return self.handle_binop(node)
+            return helper(self.__handle_binop, node)
         
         elif isinstance(node, ast_types.Call):
-            return self.handle_call(var_name, node)
+            return helper(self.__handle_call, var_name, node)
         
         elif isinstance(node, ast_types.If):
-            return self.handle_if(var_name, node)
+            return self.__handle_if(var_name, node)
         
         raise TypeError("Unsupported custom ast type")
         
-    def handle_subscript(self, var_name, node):
-        var = None
-        if node.dependency_name in self.program_params:
-            var = self.global_priors[0]
-        elif node.dependency_name in self.model_vars:
-            var = next(x for x in self.model_vars.reverse() if var_name == x)
-        
-        # else: Need to look up value of variable in ast tree (constant etc)                    
-        
-        # Does array slicing work if var is a distribution?
-        # Should work the same as numpy indexing
+    def __handle_subscript(self, node):
+        var = self.__temp(node.dependency_name)
         return var[node.lower:node.upper]
         #prog.execute_observations(prior, temp) 
     
-    def handle_compare(self, var_name, node):
-        left = self.map(var_name, node.left)
-        right = self.map(var_name, node.right)
-        if node.operation == ast_types.Operation.EQUAL:
-            return pm_math.eq(left, right)
+    def __handle_compare(self, var_name, node):
+        left = self.__map_to_pycm_var(var_name, node.left)
+        right = self.__map_to_pycm_var(var_name, node.right)
+        return self.__to_pymc_operation(node.operation, left, right)
         
-        if node.operation == ast_types.Operation.LT:
-            return pm_math.lt(left, right)
-        
-        if node.operation == ast_types.Operation.GT:
-            return pm_math.gt(left, right) 
-    
-    def handle_index(self, node):
-        operand = None
-        var_from_model = next((x for x in reversed(self.model_vars) if x[0] == node.dependency_name), None)
-        if node.dependency_name in self.program_params:
-            operand = self.global_priors[0]
-        elif var_from_model != None:
-            operand = var_from_model[1]
-        
+    def __handle_index(self, node):
+        operand = self.__temp(node.dependency_name)
         return operand[node.index]
     
-    def handle_binop(self, node):
-        left = None
-        var_from_model = next((x for x in reversed(self.model_vars) if x[0] == node.left.dependency_name), None)
-        if node.left.dependency_name in self.program_params:
-            left = self.global_priors[0]
-        elif var_from_model != None:
-            left = var_from_model[1]
+    def __handle_binop(self, node):
+        left = self.__to_pymc_operation(node.left.operation, self.__temp(node.left.dependency_name))
+        right = self.__to_pymc_operation(node.right.operation, self.__temp(node.right.dependency_name))
         
-        # else: Need to look up value of variable in ast tree (constant etc)
-        
-        if node.left.operation == ast_types.Operation.SUM:
-            left = pm_math.sum(left) if isinstance(left, tt.TensorVariable) else sum(left)
-        elif node.right.operation == ast_types.Operation.SIZE:    
-            left = left.shape if isinstance(left, tt.TensorVariable) else len(left)
-        
-        right = None
-        var_from_model = next((x for x in reversed(self.model_vars) if x[0] == node.right.dependency_name), None)
-        if node.right.dependency_name in self.program_params:
-            right = self.global_priors[0]
-        elif var_from_model != None:
-            right = var_from_model[1]
-        
-        # else: Need to look up value of variable in ast tree (constant etc)
-        
-        if node.right.operation == ast_types.Operation.SUM:
-            right = pm_math.sum(right) if isinstance(right, tt.TensorVariable) else sum(right)
-        elif node.right.operation == ast_types.Operation.SIZE:    
-            right = right.shape if isinstance(right, tt.TensorVariable) else len(right)
-        
-        if node.operation == ast_types.Operation.DIVIDE:
-            return left / right
-        elif node.operation == ast_types.Operation.ADD:
-            return left + right
+        return self.__to_pymc_operation(node.operation, left, right)
         
         """ if line_number == 17:
             self.prog.execute_observations(self.prior, t) """
     
-    def handle_call(self, var_name, node):
-        operand = self.map(var_name, node.operand)
-        if node.operation == ast_types.Operation.SUM:
-            return pm_math.sum(operand) if isinstance(operand, tt.TensorVariable) else sum(operand)
-        elif node.operation == ast_types.Operation.SIZE:    
-            return operand.shape if isinstance(operand, tt.TensorVariable) else len(operand)
+    def __handle_call(self, var_name, node):
+        operand = self.__map_to_pycm_var(var_name, node.operand)
+        return self.__to_pymc_operation(node.operation, operand) 
     
-    # Cant use 'if <boolean>' so need to evaluate whole body of if?
-    # That means only measuring risk in the final variable/return of if?
-    # Measure risk of whole if branch as a whole?
-    # Ask Raul about best way to approach this?
-    # - Maybe possible using aesera?
-    def handle_if(self, var_name, node):
-        print("HERE")
-        test = self.map(var_name, node.test)
-        body_mapped = [self.map(var_name_and_lineno[0], node) for var_name_and_lineno, node in node.body.items()]
-        print(body_mapped)
-        """ for var_name_and_lineno, node in node.body.items():
-                self.create_pycm_var(var_name_and_lineno, node)
-        _ = pm_math.switch(test, self.loop(node), tt.as_tensor_variable(0)) """
+    def __handle_if(self, var_name, node):
+        last = list(node.body.items())[-1][0]        
+        var_name_with_line_number = f"{last[0]} - {str(last[1])}"
+        test = self.__map_to_pycm_var(var_name, node.test)
+        body_mapped = [self.__map_to_pycm_var(var_name_and_lineno[0], node, True) for var_name_and_lineno, node in node.body.items()]
         
-        """ if node.else_branch:
-            print("ELSE")  """
+        val = pm_math.switch(test, body_mapped[-1], pm.Data(f"D - {var_name_with_line_number}", None))
+        pm.Deterministic(var_name_with_line_number, val)
+        
+    def __temp(self, dependency_name):
+        var_from_model = next((x for x in reversed(self.model_vars) if x[0] == dependency_name), None)
+        if dependency_name in self.program_params:
+            return self.global_priors[0]
+        
+        elif var_from_model != None:
+            return var_from_model[1]
+        
+        raise TypeError("Couldn't find var in model or program parameters")
+        
+    def __to_pymc_operation(self, operation, operand, right=None):
+        if operation == ast_types.Operation.EQUAL:
+            return pm_math.eq(operand, right)
+        
+        if operation == ast_types.Operation.LT:
+            return pm_math.lt(operand, right)
+        
+        if operation == ast_types.Operation.GT:
+            return pm_math.gt(operand, right) 
+        
+        if operation == ast_types.Operation.DIVIDE:
+            return operand / right
+        
+        if operation == ast_types.Operation.ADD:
+            return operand + right
+        
+        if operation == ast_types.Operation.SUM:
+            return pm_math.sum(operand) if isinstance(operand, tt.TensorVariable) else sum(operand)
+        
+        if operation == ast_types.Operation.SIZE:    
+            return operand.shape if isinstance(operand, tt.TensorVariable) else len(operand)
+        
+        raise TypeError("Unknown operation")
+        
+        
+        
+    
+    
+    
+        
             
