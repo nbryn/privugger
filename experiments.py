@@ -41,7 +41,7 @@ def analyze_in_progress(ages):
 
 def analyze_works(ages):
     first = ages[5:10].sum()
-    if ages[0] < 35:
+    if ages[0] < 45:
         subset = ages[:20]
         avg = subset.sum() / subset.size
         return avg
@@ -59,13 +59,27 @@ def analyze_works(ages):
     second = ages[10:20].sum()
     return ages.sum() / ages.size
 
+def masking(ages):
+     output = ages
+     for i in range(len(ages)):
+         if 0 <= ages[i] < 25:
+             output[i] = 0
+         if 25 <= ages[i] < 50:
+             output[i] = 1
+         if 50 <= ages[i] < 75:
+             output[i] = 2
+         if 75 <= ages[i]:
+             output[i] = 3
+     
+     return output
+ 
 
-ages = pv.Normal('ages', mu=35, std=2, num_elements=100)
+ages = pv.Uniform('ages', lower=0, upper=100, num_elements=5)
 ds = pv.Dataset(input_specs=[ages])
 program = pv.Program('output',
                      dataset=ds,
                      output_type=pv.Float,
-                     function=analyze_works)
+                     function=masking)
 
 program.add_observation('output==44', precision=0.1)
 

@@ -212,6 +212,7 @@ def infer(prog, cores=2, chains=2, draws=500, method="pymc3", return_model=False
     ----------
     Trace produced by the probabilistic programming inference: Arviz trace
     """
+    
     data_spec = prog.dataset
     output = prog.output_type
     num_specs = len(data_spec.input_specs)
@@ -247,7 +248,7 @@ def infer(prog, cores=2, chains=2, draws=500, method="pymc3", return_model=False
                 trace = None
                 with model:
                     prior = get_prior(num_specs, input_specs)
-                    model_builder = ModelBuilder(dependency_map, program_params, global_priors, prior, prog)
+                    model_builder = ModelBuilder(dependency_map, program_params, global_priors, prog.dataset.input_specs[0].num_elements, prior, prog)
                     model_builder.build()
                                                                  
                     print("SAMPLING")

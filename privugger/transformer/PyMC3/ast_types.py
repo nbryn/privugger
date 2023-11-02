@@ -6,9 +6,11 @@ class Operation(Enum):
     MULTIPLY = 3
     EQUAL = 4
     LT = 5
-    GT = 6
-    SUM = 7
-    SIZE = 8
+    LTE = 6
+    GT = 7
+    GTE = 8
+    SUM = 9
+    SIZE = 10
     
 class WrapperNode():
     value = None
@@ -22,14 +24,21 @@ class Constant():
     def __init__(self, value):
         self.value = value
 
+class Assign():
+    temp = None
+    value = None
+
+    def __init__(self, temp, value=None):
+        self.temp = temp
+        self.value = value
 class Index():
     dependency_name = ""
-    index = 0
+    index = None
     
     def __init__(self, dependency_name, index):
         self.dependency_name = dependency_name
         self.index = index
-
+        
 class If():
     test = None
     body = None
@@ -50,6 +59,21 @@ class Compare():
         self.right = right
         self.operation = operation
 
+class Compare2():
+    left = None
+    left_operation: Operation = None
+    middle = None
+    right = None
+    right_operation: Operation = None
+    
+    def __init__(self, left, left_operation, middle, right, right_operation):
+        self.left = left
+        self.left_operation = left_operation
+        self.middle = middle
+        self.right = right
+        self.right_operation = right_operation
+
+# Rename
 class Variable():
     dependency_name = ""
     operation: Operation = None
@@ -75,4 +99,22 @@ class Call():
     def __init__(self, operand, operation):
         self.operand = operand
         self.operation = operation
+
+class Loop():
+    condition = None
+    body = None
+    
+    def __init__(self, condition, body):
+        self.condition = condition
+        self.body = body
+
+class Range():
+    start = 0
+    stop = None
+    
+    def __init__(self, stop, start = 0):
+        self.start = start
+        self.stop = stop
+    
+    
         
