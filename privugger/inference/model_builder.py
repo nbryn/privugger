@@ -22,8 +22,6 @@ class ModelBuilder():
         self.program = program
     
     def build(self):
-        print(self.dependency_map.items())
-        print(list(self.dependency_map.items())[1][1].body)
         for var_name_and_lineno, node in self.dependency_map.items():
             self.__create_pycm_var(var_name_and_lineno, node)
     
@@ -33,11 +31,17 @@ class ModelBuilder():
 
         var = self.__map_to_pycm_var(var_name, node)
         if not isinstance(node, ast_types.If) and not isinstance(node, ast_types.Loop) and var != None:
-            pymc_var = pm.Deterministic(var_name_with_line_number, var if not isinstance(var, tt.TensorVariable) else tt.as_tensor_variable(var))
+            
+            # This need to be handled differently
+            # Determine wether pymc var or normal var during transformation
+            if isinstance(node, ast_types.Assign):
+                pymc_var = [0] * self.num_elements 
+            else:
+                pymc_var = pm.Deterministic(var_name_with_line_number, var if not isinstance(var, tt.TensorVariable) else tt.as_tensor_variable(var))
+            
             self.model_vars.append((var_name, pymc_var))
 
     def __map_to_pycm_var(self, var_name, node, add_to_model_vars=False):
-        print(node)
         def helper(func, *args):
             var = func(*args)
             if add_to_model_vars:
@@ -61,10 +65,16 @@ class ModelBuilder():
             return helper(self.__handle_binop, node)
         
         elif isinstance(node, ast_types.Assign):
+            # This needs cleanup. 
+            # We should create a 'normal' array when assigning something to the input (look at masking)
+            # And create deterministic pymc variable after all mutation
             if isinstance(node.temp, str):
-                return self.__find_dependency(node.temp)
-            
-            raise TypeError("Unsupported assign type")
+                dependency = self.__find_dependency(node.temp)
+                if node.temp == "ages":
+                    return dependency
+                
+                pm.Deterministic(var_name, tt.as_tensor_variable(dependency)) 
+                return None
         
         elif isinstance(node, ast_types.Call):
             return helper(self.__handle_call, var_name, node)
@@ -90,14 +100,18 @@ class ModelBuilder():
             return self.__to_pymc_operation(node.operation, left, right)
         
         middle = self.__map_to_pycm_var(var_name, node.middle)
-        left_compare = self.__map_to_pycm_operation(node.left_operation, left, middle)
-        right_compare = self.__map_to_pycm_operation(node.right_operation, middle, right)
+        left_compare = self.__to_pymc_operation(node.left_operation, left, middle)
+        right_compare = self.__to_pymc_operation(node.right_operation, middle, right)
         
         # Does this work as expected?    
         return pm_math.and_(left_compare, right_compare)
     
     def __handle_index(self, node):
         operand = self.__find_dependency(node.dependency_name)
+        if isinstance(node.index, str):
+            index = self.__find_dependency(node.index)
+            return operand[index]
+            
         return operand[node.index]
     
     def __handle_binop(self, node):
@@ -114,19 +128,15 @@ class ModelBuilder():
         return self.__to_pymc_operation(node.operation, operand) 
     
     def __handle_if(self, var_name, node):
-        body = list(node.body.items())        
+        body = list(node.body.items())   
         test = self.__map_to_pycm_var(var_name, node.test)
         #body_mapped = [self.__map_to_pycm_var(var_name_and_lineno[0], node, True) for var_name_and_lineno, node in body]
-        for index, (var_name_and_lineno, node) in body:
-            print("HERE")
+        for index, (var_name_and_lineno, node) in enumerate(body):
             if isinstance(node, ast_types.Assign):
-                print("HERE")
-                print(node.temp.dependency_name)
-                var = self.__map_to_pycm_var(var_name_and_lineno[0], node)
                 operand = self.__find_dependency(node.temp.dependency_name)
-                val = pm_math.switch(test, node.value, operand[node.temp.index])
-                
-                operand[node.temp.index] = val
+                index = self.__find_dependency(node.temp.index) if isinstance(node.temp.index, str) else node.temp.index
+                val = pm_math.switch(test, node.value, operand[index])
+                operand[index] = val
             
             else:    
                 var_name_with_line_number = f"{body[index][0]} - {str(body[index][1])}"
@@ -146,12 +156,9 @@ class ModelBuilder():
             elif node.condition.dependency_name in self.program_params:
                     stop = self.num_elements
             
-            print(node.body)
             for i in range(start, stop):
-                print(i)
-                self.model_vars.append((str(i), tt.as_tensor_variable(i)))
-                [self.__map_to_pycm_var(var_name_and_lineno[0], node) for var_name_and_lineno, node in node.body.items()]
-                               
+                self.model_vars.append(("i", i))
+                [self.__map_to_pycm_var(var_name_and_lineno[0], node) for var_name_and_lineno, node in node.body.items()]            
                 self.model_vars.pop()
             
         return

@@ -137,7 +137,7 @@ class Transformer():
         subscript.dependency_name = value.value.id
         
         if isinstance(value.slice, ast.Index):
-            return ast_types.Index(value.value.id, value.slice.value.value if hasattr(value.slice.value, 'value') else 'id')
+            return ast_types.Index(value.value.id, value.slice.value.value if hasattr(value.slice.value, 'value') else value.slice.value.id)
         
         # Assumes lower and upper has constant values
         if hasattr(value.slice.lower, "value"):

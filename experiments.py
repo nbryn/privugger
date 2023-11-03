@@ -88,14 +88,14 @@ trace: az.InferenceData = pv.infer(program,
                  draws=10_000,
                  method='pymc3')
 
-#print(trace.posterior)
-temp = trace.posterior.data_vars['avg - 5'][0] 
-print(temp)
-print(len(temp))
+print(trace.posterior.data_vars['return'][0])
+#temp = trace.posterior.data_vars['avg - 5'][0] 
+#print(temp)
+#print(len(temp))
 #trace.posterior.data_vars['avg - 5'][0] = [x for x in temp if not math.isnan(x) ]
 
-az.plot_posterior(trace, var_names=['avg - 5'],
-                    hdi_prob=.95, point_estimate='mode')
+""" az.plot_posterior(trace, var_names=['avg - 5'],
+                    hdi_prob=.95, point_estimate='mode') """
 
 """ az.plot_posterior(trace, var_names=['return - 19'],
                     hdi_prob=.95, point_estimate='mode') """
