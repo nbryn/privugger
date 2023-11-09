@@ -39,25 +39,43 @@ def analyze_in_progress(ages):
     return ages.sum() / ages.size
 
 
-def analyze_works(ages):
-    first = ages[5:10].sum()
-    if ages[0] < 45:
-        subset = ages[:20]
-        avg = subset.sum() / subset.size
-        return avg
+def sample(ages):
+    if ages[0] < 35:
+        subset1 = ages[:20]
+        avg1 = subset1.sum() / subset1.size
+        return avg1
     
     if ages[0] < 40:
-        subset = ages[:40]
-        avg = subset.sum() / subset.size
-        return avg
+        subset2 = ages[:40]
+        avg2 = subset2.sum() / subset2.size
+        return avg2
     
     elif ages[0] < 45:
-        subset = ages[:60]
-        avg = subset.sum() / subset.size
-        return avg
+        subset3 = ages[:60]
+        avg3 = subset3.sum() / subset3.size
+        return avg3
     
-    second = ages[10:20].sum()
     return ages.sum() / ages.size
+
+def sample_pymc(ages):
+    with pm.Model() as model:
+        avg1 = pm.Deterministic('avg1', pm.math.sum(ages[:20]) / 20)
+        avg2 = pm.Deterministic('avg2', pm.math.sum(ages[:40]) / 40)
+        avg3 = pm.Deterministic('avg3', pm.math.sum(ages[:60]) / 60)
+        avg_all = pm.Deterministic('avg_all', pm.math.sum(ages) / len(ages))
+
+        age = ages[0]
+        condition1 = pm.math.lt(age, 35)
+        condition2 = pm.math.lt(age, 40)
+        condition3 = pm.math.lt(age, 45)
+        
+        st = pm.Normal()
+        st.random
+
+        output = pm.math.switch(condition1, avg1, pm.math.switch(condition2, avg2, pm.math.switch(condition3, avg3, avg_all)))
+        pm.Deterministic('output', output)
+    
+    return model
 
 def masking(ages):
      output = ages
@@ -88,14 +106,20 @@ trace: az.InferenceData = pv.infer(program,
                  draws=10_000,
                  method='pymc3')
 
-print(trace.posterior.data_vars['return'][0])
+print(trace.posterior.data_vars)
+#print(trace.posterior.data_vars['return'][0])
+#print(trace.posterior.data_vars['return'][0][0])
+#print(len(trace.posterior.data_vars['return'][0]))
+
 #temp = trace.posterior.data_vars['avg - 5'][0] 
 #print(temp)
 #print(len(temp))
 #trace.posterior.data_vars['avg - 5'][0] = [x for x in temp if not math.isnan(x) ]
 
-""" az.plot_posterior(trace, var_names=['avg - 5'],
-                    hdi_prob=.95, point_estimate='mode') """
+az.plot_posterior(trace, var_names=['return - 13'],
+                    hdi_prob=.95, point_estimate='mode')
+
+az.plot_trace(trace, var_names=['return - 13'])
 
 """ az.plot_posterior(trace, var_names=['return - 19'],
                     hdi_prob=.95, point_estimate='mode') """

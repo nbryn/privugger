@@ -77,7 +77,7 @@ class Transformer():
             
                 return ast_types.Loop(var, body_dependency_map)
         
-        raise TypeError("Unsuported node encountered in for loop")
+        raise TypeError("Unsuported ast node encountered in loop")
     
     def __handle_if_or_loop_body(self, node):        
         body_dependency_map = {}

@@ -31,6 +31,7 @@ class Assign():
     def __init__(self, temp, value=None):
         self.temp = temp
         self.value = value
+        
 class Index():
     dependency_name = ""
     index = None
