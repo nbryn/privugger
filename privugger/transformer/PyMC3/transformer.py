@@ -50,7 +50,7 @@ class Transformer():
             dependencies[var_name] = type
     
     def __map_ast_if_to_custom_type(self, node):
-        test = self.__map_ast_node_to_custom_type(ast_types.WrapperNode(node.test))
+        test = self.__map_ast_node_to_custom_type(node.test)
          # This to handle nested if's
         body_dependency_map = self.__handle_if_or_loop_body(node)
         # Need to handle else here?
@@ -62,7 +62,7 @@ class Transformer():
     # So loops shouldn't be translated into PyMC variables
     # but instead function as a 'normal' python loop.
     def __map_ast_for_to_custom_type(self, node):
-        # Only standard 'for i in range()' looprs supported for now
+        # Only standard 'for i in range()' loops supported for now
         body_dependency_map = self.__handle_if_or_loop_body(node)
         args = node.iter.args
         if isinstance(args[0], ast.Call):
@@ -87,40 +87,46 @@ class Transformer():
         return dict(sorted(body_dependency_map.items(), key=lambda x: x[0][1]))
     
     def __map_ast_node_to_custom_type(self, node):
-        value = node.value if (not isinstance(node, ast.Assign) and not isinstance(node, ast.Subscript) and not isinstance(node, ast.Return)) else node
-        if isinstance(value, ast.Call):
-            operand = self.__map_ast_node_to_custom_type(value.func)
-            return ast_types.Call(operand, self.__map_to_operation(value.func.attr))
+        if isinstance(node, ast.Call):
+            return self.__handle_call(node)
             
-        if isinstance(value, ast.Constant) or isinstance(value, int):
-            return ast_types.Constant(value if isinstance(value, int) else value.value)
+        if isinstance(node, ast.Constant):
+            return ast_types.Constant(node if isinstance(node, int) else node.value)
         
-        if isinstance(value, ast.Compare):
-            return self.__handle_compare(value)
+        if isinstance(node, ast.Compare):
+            return self.__handle_compare(node)
             
-        if isinstance(value, ast.Subscript):
-            return self.__handle_subscript(value)
+        if isinstance(node, ast.Subscript):
+            return self.__handle_subscript(node)
 
-        if isinstance(value, ast.BinOp):
-            return self.__handle_binop(value)
+        if isinstance(node, ast.BinOp):
+            return self.__handle_binop(node)
 
-        if isinstance(value, ast.Assign):
-            # Assumes only one target
-            if isinstance(value.value, ast.Name):
-                return ast_types.Assign(value.value.id)
-             
-            temp = self.__map_ast_node_to_custom_type(value.targets[0])
-            value = value.value.value
-            return ast_types.Assign(temp, value)
+        if isinstance(node, ast.Assign):
+            return self.__handle_assign(node)
+                         
+        if isinstance(node, ast.Return):
+            if hasattr(node.value, 'id'):
+                return ast_types.Assign(node.value.id)
+            
+            return self.__map_ast_node_to_custom_type(node.value)
 
-        if isinstance(value, ast.Return):
-            return ast_types.Assign(value.value.id)
-
-        print(ast.dump(value))
+        print(ast.dump(node))
         raise TypeError("ast type not supported")
     
+    def __handle_call(self, node):
+        if isinstance(node.func.value, ast.Attribute):
+            if isinstance(node.func.value.value, ast.Name) and node.func.value.value.id == 'np':
+                if node.func.attr == 'laplace':
+                    loc = self.__map_ast_node_to_custom_type(node.keywords[0].value)
+                    scale = self.__map_ast_node_to_custom_type(node.keywords[1].value)
+                    return ast_types.Laplace(loc, scale)
+                    
+        operand = self.__map_ast_node_to_custom_type(node.func)
+        return ast_types.Call(operand, self.__map_to_operation(node.func.attr))
+        
     def __handle_compare(self, value):
-        left = self.__map_ast_node_to_custom_type(ast_types.WrapperNode(value.left))
+        left = self.__map_ast_node_to_custom_type(value.left)
         # Assumes max two comparators
         left_operation = self.__map_to_operation(value.ops[0])
         middle_or_right = self.__map_ast_node_to_custom_type(value.comparators[0])   
@@ -148,17 +154,45 @@ class Transformer():
         
         return subscript
     
-    def __handle_binop(self, value):
+    def __handle_binop(self, node):
         binop = ast_types.BinOp()
-        binop.operation = self.__map_to_operation(value.op)
-        if isinstance(value.left.func, ast.Attribute):
-            binop.left = ast_types.Variable(value.left.func.value.id, self.__map_to_operation(value.left.func.attr))
-                
-        if isinstance(value.right, ast.Attribute):
-            binop.right = ast_types.Variable(value.right.value.id, self.__map_to_operation(value.right.attr))
+        binop.operation = self.__map_to_operation(node.op)
+        
+        if isinstance(node.left, ast.Name):
+            binop.left = ast_types.Reference(node.left.id)
+        
+        elif isinstance(node.left, ast.Constant):
+            binop.left = ast_types.Constant(node.left.value)
+            
+        elif isinstance(node.left.func, ast.Attribute):
+            binop.left = ast_types.Variable(node.left.func.value.id, self.__map_to_operation(node.left.func.attr))
+            
+        if isinstance(node.right, ast.Name):
+            binop.right = ast_types.Reference(node.right.id)
+        
+        if isinstance(node.right, ast.Constant):
+            binop.right = ast_types.Constant(node.right.value)
+        
+        elif isinstance(node.right, ast.Attribute):
+            binop.right = ast_types.Variable(node.right.value.id, self.__map_to_operation(node.right.attr))
             
         return binop
     
+    def __handle_assign(self, node):
+        # Assumes only one target
+        if isinstance(node.value, ast.Name):
+            return ast_types.Assign(node.value.id)
+        
+        if isinstance(node.value, ast.Call):
+            return self.__handle_call(node.value)
+
+        if isinstance(node.value, ast.BinOp):
+            return self.__handle_binop(node.value)
+            
+        temp = self.__map_ast_node_to_custom_type(node.targets[0] if not isinstance(node.targets[0], ast.Name) else node.value)
+        value = node.value.value
+        return ast_types.Assign(temp, value)
+
     def __get_variable_name(self, node):
         # Named variable with name
         # This assumes there is only one target

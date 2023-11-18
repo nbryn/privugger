@@ -11,12 +11,20 @@ class Operation(Enum):
     GTE = 8
     SUM = 9
     SIZE = 10
+
+class Laplace():
+    loc = None
+    scale = None
     
-class WrapperNode():
-    value = None
+    def __init__(self, loc, scale):
+        self.loc = loc
+        self.scale = scale
+        
+class Reference():
+    dependency_name = None
     
-    def __init__(self, value):
-        self.value = value
+    def __init__(self, dependency_name):
+        self.dependency_name = dependency_name
 
 class Constant():
     value = None
@@ -90,8 +98,8 @@ class Subscript():
        
 class BinOp():
     operation: Operation = None
-    left: Variable = None
-    right: Variable = None
+    left = None
+    right = None
     
 class Call():
     operand = None

@@ -5,9 +5,9 @@ import privugger.transformer.PyMC3.ast_types as ast_types
 
 # Make methods and fields private
 class ModelBuilder():
+    model_variables = []
     dependency_map = {}
     program_params = []
-    model_vars = []
     global_priors = []
     num_elements = 0
     program = None
@@ -30,54 +30,69 @@ class ModelBuilder():
         var_name_with_line_number = f"{var_name} - {str(line_number)}"
         
         # Handles top level assignment that references/points directly to parameter.
+        # Will fail if assignment isn't a direct reference
         if isinstance(node, ast_types.Assign) and node.temp in self.program_params:
             # Assumes single parameter that is an array/distribution.
             # Better way to initialize here?
             var = self.global_priors[0].random().tolist()            
-            self.model_vars.append((var_name, var))
+            self.model_variables.append((var_name, var))
+            return
+        
+        if isinstance(node, ast_types.Laplace):
+            loc = self.__map_to_pycm_var(var_name, node.loc)
+            scale = self.__map_to_pycm_var(var_name, node.scale)
+            var = pm.Laplace(var_name_with_line_number, loc, scale)
+            self.model_variables.append((var_name, var))
             return 
-
+            
         var = self.__map_to_pycm_var(var_name, node)
         if not isinstance(node, ast_types.If) and not isinstance(node, ast_types.Loop):
             pymc_var = pm.Deterministic(var_name_with_line_number, tt.as_tensor_variable(var))
-            self.model_vars.append((var_name, pymc_var))
+            self.model_variables.append((var_name, pymc_var))
 
     def __map_to_pycm_var(self, var_name, node, add_to_model_vars=False):
         def helper(func, *args):
             var = func(*args)
             if add_to_model_vars:
-                self.model_vars.append((var_name, var))
+                self.model_variables.append((var_name, var))
             
             return var
         
         if isinstance(node, ast_types.Subscript):
             return helper(self.__handle_subscript, node)
         
-        elif isinstance(node, ast_types.Constant):
+        if isinstance(node, ast_types.Constant):
             return node.value 
         
-        elif isinstance(node, ast_types.Compare) or isinstance(node, ast_types.Compare2):
+        if isinstance(node, ast_types.Compare) or isinstance(node, ast_types.Compare2):
             return helper(self.__handle_compare, var_name, node)
         
-        elif isinstance(node, ast_types.Index):
+        if isinstance(node, ast_types.Index):
             return helper(self.__handle_index, node)
             
-        elif isinstance(node, ast_types.BinOp):
+        if isinstance(node, ast_types.BinOp):
             return helper(self.__handle_binop, node)
         
-        elif isinstance(node, ast_types.Assign):
+        if isinstance(node, ast_types.Assign):
             if isinstance(node.temp, str):
                 return self.__find_dependency(node.temp)
             
+            if isinstance(node.temp, ast_types.Constant):
+                return node.temp.value
+            
+            if isinstance(node.temp, ast_types.Index):
+                dependency = self.__find_dependency(node.temp.dependency_name)
+                return dependency[node.temp.index]
+                
             raise TypeError("Unsupported assign operation")
         
-        elif isinstance(node, ast_types.Call):
+        if isinstance(node, ast_types.Call):
             return helper(self.__handle_call, var_name, node)
         
-        elif isinstance(node, ast_types.Loop):
+        if isinstance(node, ast_types.Loop):
             return helper(self.__handle_loop, node)
         
-        elif isinstance(node, ast_types.If):
+        if isinstance(node, ast_types.If):
             return self.__handle_if(var_name, node)
         
         print(node)
@@ -109,8 +124,19 @@ class ModelBuilder():
         return operand[node.index]
     
     def __handle_binop(self, node):
-        left = self.__to_pymc_operation(node.left.operation, self.__find_dependency(node.left.dependency_name))
-        right = self.__to_pymc_operation(node.right.operation, self.__find_dependency(node.right.dependency_name))
+        if isinstance(node.left, ast_types.Reference):
+            left = self.__find_dependency(node.left.dependency_name)    
+        elif isinstance(node.left, ast_types.Constant):
+            left = node.left.value
+        else:        
+            left = self.__to_pymc_operation(node.left.operation, self.__find_dependency(node.left.dependency_name))
+        
+        if isinstance(node.right, ast_types.Reference):
+            right = self.__find_dependency(node.right.dependency_name)
+        elif isinstance(node.right, ast_types.Constant):
+            right = node.right.value
+        else:
+            right = self.__to_pymc_operation(node.right.operation, self.__find_dependency(node.right.dependency_name))
         
         return self.__to_pymc_operation(node.operation, left, right)
         
@@ -131,6 +157,12 @@ class ModelBuilder():
                     # Index can be a variable like 'index/i' in a for loop.
                     index = self.__find_dependency(node.temp.index) if isinstance(node.temp.index, str) else node.temp.index
                     operand[index] = pm_math.switch(test, node.value, operand[index])
+                
+                elif isinstance(node.temp, str):
+                    self.__map_to_pycm_var(var_name_and_lineno[0], node, True)
+                
+                else:
+                    self.__map_to_pycm_var(var_name_and_lineno[0], node.temp, True)
                     
             else:    
                 var_name_with_line_number = f"{body[index][0]} - {str(body[index][1])}"
@@ -161,15 +193,15 @@ class ModelBuilder():
                     raise TypeError("Unsupported loop")
         
         for i in range(start, stop):
-            self.model_vars.append(("i", i))
+            self.model_variables.append(("i", i))
             [self.__map_to_pycm_var(var_name_and_lineno[0], node) for var_name_and_lineno, node in node.body.items()]            
-            self.model_vars.pop()
+            self.model_variables.pop()
 
     def __find_dependency(self, dependency_name):
         if dependency_name in self.program_params:
             return self.global_priors[0]
 
-        var_from_model = next((x for x in reversed(self.model_vars) if x[0] == dependency_name), None)
+        var_from_model = next((x for x in reversed(self.model_variables) if x[0] == dependency_name), None)
         if var_from_model != None:
             return var_from_model[1]
         

@@ -43,8 +43,7 @@ def mi_sklearn(
         trace1 = trace.posterior[var_names[0]].values.flatten().reshape(-1, 1)
         trace2 = trace.posterior[var_names[1]].values.flatten()
     else:
-        assert len(
-            trace) == 2, "trace must containt two subtraces for each of each random variables to compute mutual information"
+        assert len(trace) == 2, "trace must containt two subtraces for each of each random variables to compute mutual information"
         trace1 = trace[0].reshape(-1, 1)
         trace2 = trace[1]
 
