@@ -46,7 +46,7 @@ class FunctionTypeDecorator(ast.NodeTransformer):
 
         return new_function
 
-    def lift(self, program, decorators, split_into_subprograms):
+    def lift(self, program, decorators, use_new_method):
         """
         This funtion provides another path to program lifting, when the decoration types are given directly. 
         The function lifts the program to be used within a pymc3 model.
@@ -107,14 +107,10 @@ class FunctionTypeDecorator(ast.NodeTransformer):
         
         os.remove("temp.py")
         function_def = self.get_function_def_ast(tree.body)
-        if not split_into_subprograms:
+        if use_new_method:
             return Transformer(tree, function_def).transform()
         
         root = self.create_decorated_function(function_def, decorators[0], decorators[1][0])    
-         
-        return self.split_into_subprograms(tree, source_code, root)
-        
-    
         if isinstance(tree.body[0], ast.Import):
             imports = tree.body[0]
             wrapped_node = self.simple_method_wrap(root, tree.body[1].name, tree.body[1].args)
@@ -123,83 +119,7 @@ class FunctionTypeDecorator(ast.NodeTransformer):
         else:
             wrapped_node = self.simple_method_wrap(root, tree.body[0].name, tree.body[0].args)
         
-        os.remove("temp.py")
         return wrapped_node
-
-    def split_into_subprograms(self, tree, source_code, node):
-        sub_programs = self.get_sub_programs(node, source_code)
-        programs_wrapped = []
-        for (line_number, program) in sub_programs:
-            if isinstance(tree.body[0], ast.Import):
-                imports = tree.body[0]
-                wrapped_program = self.simple_method_wrap(program, tree.body[1].name, tree.body[1].args)
-                wrapped_program.body.insert(0, imports)
-                programs_wrapped.append((line_number, wrapped_program))
-
-            else:
-                wrapped_program = self.simple_method_wrap(program, tree.body[0].name, tree.body[0].args)
-                programs_wrapped.append((line_number, wrapped_program))
-
-        os.remove("temp.py")
-        return programs_wrapped
-
-    def get_sub_programs(self, root, source_code):
-        return_line_numbers = self.get_line_numbers(source_code, "return")
-        sub_programs = []
-        for child_node in root.body:
-            if isinstance(child_node, ast.Assign): continue
-            
-            # Can we use ast.walk(tree) instead?
-            # This needs to handle nested returns
-            # This only check whether top-levels nodes have return statements
-            if self.has_return(child_node):
-                sub_programs.append(child_node)
-            
-            if hasattr(child_node, "orelse"):
-                for node in child_node.orelse:
-                    if self.has_return(node):
-                        sub_programs.append(node)
-        
-        # sub_programs is all trees with a return node
-        # Need to remove intermediate statements such as if
-        # But keep assignments etc
-        # Currently only removes if. Recursive?
-        # Also wraps all sub programs in top node
-        for i, node in enumerate(sub_programs):
-            if isinstance(node, ast.If):
-                new_node = copy.copy(root)
-                new_node.body = node.body
-                sub_programs[i] = (return_line_numbers[i], new_node)
-            
-            elif isinstance(node, ast.Return):
-                new_node = copy.copy(root)
-                new_node.body = [node]
-                sub_programs[i] = (return_line_numbers[i], new_node)    
-                
-        return sub_programs
-
-    # Nodes without body: return, assign
-    # Need to handle orelse here
-    def has_return(self, node):
-        if isinstance(node, ast.Return): return True
-        
-        for child_node in node.body:
-            if isinstance(child_node, ast.Assign): continue
-            return isinstance(child_node, ast.Return) or self.has_return(child_node)
-
-        return False
-    
-    def get_line_numbers(self, source, statement):
-        module = compile(source, self.file_name, "exec")
-        namespace = {}
-        exec(module, namespace)
-
-        function_name = [name for name, obj in namespace.items() if inspect.isfunction(obj)][0]
-        function_source = inspect.getsource(namespace[function_name])
-        lines = function_source.split('\n')
-        return_line_numbers = [i + 1 for i, line in enumerate(lines) if line.strip().startswith(statement)]
-        
-        return return_line_numbers
 
     def translate_type(self, p_type):
         """

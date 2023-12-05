@@ -27,12 +27,7 @@ class Transformer():
         nodes = []
         for child_node in ast.walk(root):
             if child_node.__class__ in nodes_to_collect:
-                if isinstance(child_node, ast.Return): 
-                    # Ignore returns that just return a variable with no additional computation
-                    #if not isinstance(child_node.value, ast.Name):                    
-                    nodes.append(child_node)
-                else:
-                    nodes.append(child_node)
+                nodes.append(child_node)
                     
         return sorted(nodes, key=lambda x: x.lineno)
     

@@ -190,7 +190,7 @@ def sample_prior(model, samples=50):
         return prior_checks
 
 
-def infer(prog, cores=2, chains=2, draws=500, method="pymc3", return_model=False, split_into_subprograms=False):
+def infer(prog, cores=2, chains=2, draws=500, method="pymc3", return_model=False, use_new_method=True):
     """
 
     Parameters
@@ -242,8 +242,8 @@ def infer(prog, cores=2, chains=2, draws=500, method="pymc3", return_model=False
         if (program is not None):
             ftp = FunctionTypeDecorator()
             decorators = _from_distributions_to_theano(input_specs, output)
-            if not split_into_subprograms:
-                (program_params, dependency_map) = ftp.lift(program, decorators, False)
+            if use_new_method:
+                (program_params, dependency_map) = ftp.lift(program, decorators, True)
                 model = pm.Model()
                 trace = None
                 with model:
@@ -265,26 +265,23 @@ def infer(prog, cores=2, chains=2, draws=500, method="pymc3", return_model=False
                 
                 return trace
             
-            lifted_programs_with_import = [(line_number, ftp.wrap_with_theano_import(program)) for (line_number, program) in ftp.lift(program, decorators, True)]
-            traces = []
-            for i, (line_number, sub_program) in enumerate(lifted_programs_with_import):
-                program_to_sample = create_program_file(sub_program)
-                os.rename("typed.py", f'typed{i+1}.py')
-                
-                model = pm.Model()
-                with model:
-
-                    # prior is distribution specifed by attacker
-                    # global_priors is list of distributions for each param in 'program_to_sample.method
-                    #   - each element is a distribution with num_elements
-                    #   - Why are we alling program_to_sample.method with a distribution?
-                    prior = get_prior(num_specs, input_specs)
-                    output = pm.Deterministic(prog.name, program_to_sample.method(*global_priors))
-                    prog.execute_observations(prior, output)
-                    print("SAMPLING")
-                    trace = pm.sample(draws=draws, chains=chains, cores=cores, return_inferencedata=True)
-                    traces.append((line_number, trace))
-                    global_priors = []
+            lifted_program = ftp.lift(program, decorators, False)
+            lifted_program_w_import = ftp.wrap_with_theano_import(lifted_program)
+        
+            f = open("typed.py", "w")
+            f.write(astor.to_source(lifted_program_w_import))
+            f.close()
+            import typed as t 
+            importlib.reload(t)
+            trace = None
+            model = pm.Model()
+            with model:
+                prior = get_prior(num_specs, input_specs)
+                output = pm.Deterministic(prog.name, t.method(*global_priors))
+                prog.execute_observations(prior, output)
+                print("SAMPLING")
+                trace = pm.sample(draws=draws, chains=chains, cores=cores, return_inferencedata=True)
+                global_priors = []
                     
 
             if (return_model):
@@ -296,7 +293,7 @@ def infer(prog, cores=2, chains=2, draws=500, method="pymc3", return_model=False
             del global_model
             del global_priors
             
-            return traces
+            return trace
 
     # Remove as not supported?
     elif method == "scipy":
@@ -359,12 +356,3 @@ def get_prior(num_specs, input_specs):
             global_priors.append(prior.pymc3_dist(prior.name, hypers_for_prior))
     
     return prior
-
-def create_program_file(program):
-    f = open("typed.py", "w")
-    f.write(astor.to_source(program))
-    f.close()
-    import typed as program_to_sample 
-    importlib.reload(program_to_sample)
-    
-    return program_to_sample

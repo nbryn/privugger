@@ -14,6 +14,8 @@ warnings.simplefilter(action="ignore", category=FutureWarning)
 # move to previouse directory to access the privugger code
 sys.path.append(os.path.join("../../"))
 
+def avg(ages):
+    return (ages.sum()) / (ages.size)
 
 # Handle AST node with return that isn't a 'top level' node
 def analyze_in_progress(ages):
@@ -40,7 +42,8 @@ def analyze_in_progress(ages):
     return ages.sum() / ages.size
 
 
-def sample(ages):
+# This should be mapped to what is shown in temp_pymc
+def temp(ages):
     if ages[0] < 35:
         subset1 = ages[:20]
         avg1 = subset1.sum() / subset1.size
@@ -59,7 +62,7 @@ def sample(ages):
     return ages.sum() / ages.size
 
 
-def sample_pymc(ages):
+def temp_pymc(ages):
     with pm.Model() as model:
         avg1 = pm.Deterministic("avg1", pm.math.sum(ages[:20]) / 20)
         avg2 = pm.Deterministic("avg2", pm.math.sum(ages[:40]) / 40)
@@ -81,7 +84,7 @@ def sample_pymc(ages):
     return model
 
 
-def masking(ages):
+def temp(ages):
     output = ages
     for i in range(len(ages)):
         if 0 <= ages[i] < 25:
@@ -97,7 +100,7 @@ def masking(ages):
 
 
 def ages_dp(ages):
-    ages_0 = ages[0]
+    ages0 = ages[0]
     avg = ages.sum() / ages.size
     epsilon = 0.1
     delta = 100 / ages.size  # assuming age range 0-100
@@ -112,10 +115,12 @@ ds = pv.Dataset(input_specs=[ages])
 program = pv.Program("output", dataset=ds, output_type=pv.Float, function=ages_dp)
 program.add_observation("output==44", precision=0.1)
 
-trace: az.InferenceData = pv.infer(program, cores=4, draws=10_000, method="pymc3")
+trace: az.InferenceData = pv.infer(program, cores=4, draws=100_000, method="pymc3", use_new_method=True)
 
-mi_avg = pv.mi_sklearn(trace, var_names=["ages_0 - 2", "avg - 3"])
-mi_dp_avg = pv.mi_sklearn(trace, var_names=["ages_0 - 2", "dp_avg - 7"])
+print(trace["posterior"])
+
+mi_avg = pv.mi_sklearn(trace, var_names=["ages0 - 2", "avg - 3"])
+mi_dp_avg = pv.mi_sklearn(trace, var_names=["ages0 - 2", "dp_avg - 7"])
 
 print(mi_avg[0])
 print(mi_dp_avg[0])
