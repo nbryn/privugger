@@ -101,7 +101,6 @@ class ModelBuilder():
     def __handle_subscript(self, node):
         var = self.__find_dependency(node.dependency_name)
         return var[node.lower:node.upper]
-        #prog.execute_observations(prior, temp) 
     
     def __handle_compare(self, var_name, node):
         left = self.__map_to_pycm_var(var_name, node.left)
@@ -139,9 +138,6 @@ class ModelBuilder():
             right = self.__to_pymc_operation(node.right.operation, self.__find_dependency(node.right.dependency_name))
         
         return self.__to_pymc_operation(node.operation, left, right)
-        
-        """ if line_number == 17:
-            self.prog.execute_observations(self.prior, t) """
             
     def __handle_call(self, var_name, node):
         operand = self.__map_to_pycm_var(var_name, node.operand)

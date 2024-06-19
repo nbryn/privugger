@@ -43,7 +43,7 @@ def analyze_in_progress(ages):
 
 
 # This should be mapped to what is shown in temp_pymc
-def temp(ages):
+def masking(ages):
     if ages[0] < 35:
         subset1 = ages[:20]
         avg1 = subset1.sum() / subset1.size
@@ -84,7 +84,7 @@ def temp_pymc(ages):
     return model
 
 
-def temp(ages):
+def masking(ages):
     output = ages
     for i in range(len(ages)):
         if 0 <= ages[i] < 25:
@@ -100,30 +100,97 @@ def temp(ages):
 
 
 def ages_dp(ages):
-    ages0 = ages[0]
+    #ages0 = ages[0]
     avg = ages.sum() / ages.size
     epsilon = 0.1
-    delta = 100 / ages.size  # assuming age range 0-100
+    delta = 100 / ages.size # assumes ages are in the interval [0-100]
     nu = np.random.laplace(loc=0.0, scale=delta / epsilon)
     dp_avg = avg + nu
 
     return dp_avg
 
 
-ages = pv.Uniform("ages", lower=0, upper=100, num_elements=5)
+def ages_dp_pymc():
+    with pm.Model() as model:
+        ages = pm.Uniform('ages', lower=0, upper=100, size=100)
+        avg = pm.Deterministic('avg', pm.math.sum(ages) / ages.shape)
+        epsilon = pm.Deterministic('epsilon', 0.1)
+        delta = pm.Deterministic('delta', 100 / ages.shape)
+        nu = pm.Laplace('nu', mu=0, b=delta / epsilon)
+        dp_avg = pm.Deterministic('dp_avg', avg + nu)
+
+    return model
+
+# Data representing a uniform distribution over the values 0, 1, 2, 3
+""" data = np.array([0, 1, 2, 3])
+
+# Create subplots with 1 row and 5 columns
+fig, axs = plt.subplots(1, 5, figsize=(15, 3), sharey=True)
+
+# Plotting histograms
+counter = 0
+for ax in axs:
+    ax.hist(data, bins=[-0.5, 0.5, 1.5, 2.5, 3.5], weights=np.ones_like(data) / len(data),
+            edgecolor='black', linewidth=1.2)
+
+    # Customizing each subplot
+    ax.set_title("Index: " + str(counter))
+    ax.set_xlabel("Values")
+    counter += 1
+
+# Set a common ylabel for the entire figure
+axs[0].set_ylabel("Probability")
+
+# Adjust layout for better spacing
+plt.tight_layout()
+
+# Show the plot
+plt.show() """
+
+
+# A simple program for each transformation rule
+# Works
+def assign_example():
+    test = 5
+    return test
+
+# TODO: Doesn't work
+def call_example():
+    ages = [1, 2, 3] 
+    test = ages.sum()
+    return test
+
+def compare_example():
+    x = 8
+    test = 5 < x <= 10  
+    return test
+
+def if_example():
+    x = 5
+    y = 0
+    if x > 10:
+        y = 20 
+    else: 
+        y = 30
+
+    return y
+    
+
+ages = pv.Uniform("ages", lower=0, upper=100, num_elements=20)
 ds = pv.Dataset(input_specs=[ages])
-program = pv.Program("output", dataset=ds, output_type=pv.Float, function=ages_dp)
+program = pv.Program("output", dataset=ds, output_type=pv.Float, function=call_example)
 program.add_observation("output==44", precision=0.1)
 
-trace: az.InferenceData = pv.infer(program, cores=4, draws=100_000, method="pymc3", use_new_method=True)
+trace: az.InferenceData = pv.infer(program, cores=4, draws=10_000, method="pymc3", use_new_method=True)
 
 print(trace["posterior"])
+#az.plot_posterior(trace, var_names=['return - 13'], hdi_prob=.95)
 
-mi_avg = pv.mi_sklearn(trace, var_names=["ages0 - 2", "avg - 3"])
-mi_dp_avg = pv.mi_sklearn(trace, var_names=["ages0 - 2", "dp_avg - 7"])
+#mi_avg = pv.mi_sklearn(trace, var_names=["ages0 - 2", "avg - 3"])
+#mi_dp_avg = pv.mi_sklearn(trace, var_names=["ages0 - 2", "dp_avg - 7"])
 
-print(mi_avg[0])
-print(mi_dp_avg[0])
+#print(mi_avg[0])
+#print(mi_dp_avg[0])
 
 
-#plt.show()
+plt.show()

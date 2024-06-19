@@ -1,3 +1,32 @@
+# White-box analysis:
+My code can be found here:
+ast_types.py: privugger/transformer/PyMC3/ast_types.py
+Transformer: privugger/transformer/PyMC3/transformer.py
+ModelBuilder: privugger/inference/model_builder.py
+
+# The following demonstrates how to use my method like described in my paper:
+
+def ages_dp(ages):
+    avg = ages.sum() / ages.size
+    epsilon = 0.1
+    delta = 100 / ages.size # assumes ages are in the interval [0-100]
+    nu = np.random.laplace(loc=0.0, scale=delta / epsilon)
+    dp_avg = avg + nu
+
+    return dp_avg
+
+ages = pv.Uniform("ages", lower=0, upper=100, num_elements=20)
+ds = pv.Dataset(input_specs=[ages])
+program = pv.Program("output", dataset=ds, output_type=pv.Float, function=ages_dp)
+
+trace: az.InferenceData = pv.infer(program, cores=4, draws=10_000, method="pymc3", use_new_method=True)
+
+mi_avg = pv.mi_sklearn(trace, var_names=["ages0 - 2", "avg - 3"])
+mi_dp_avg = pv.mi_sklearn(trace, var_names=["ages0 - 2", "dp_avg - 7"])
+
+print(mi_avg[0])
+print(mi_dp_avg[0])
+
 # Privugger: Data Privacy Debugger
 
 Docs and tutorials: https://itu-square.github.io/privugger/
