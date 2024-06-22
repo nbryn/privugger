@@ -21,7 +21,7 @@ class Laplace():
         self.scale = scale
         
 class Reference():
-    dependency_name = None
+    dependency_name = ""
     
     def __init__(self, dependency_name):
         self.dependency_name = dependency_name
@@ -33,12 +33,18 @@ class Constant():
         self.value = value
 
 class Assign():
-    temp = None
+    type = None
     value = None
 
-    def __init__(self, temp, value=None):
-        self.temp = temp
+    def __init__(self, type, value=None):
+        self.type = type
         self.value = value
+        
+class List():
+    values = []
+
+    def __init__(self, values):
+        self.values = values
         
 class Index():
     dependency_name = ""
@@ -82,15 +88,6 @@ class Compare2():
         self.right = right
         self.right_operation = right_operation
 
-# Rename
-class Variable():
-    dependency_name = ""
-    operation: Operation = None
-    
-    def __init__(self, dependency_name, operation):
-        self.dependency_name = dependency_name
-        self.operation = operation
-
 class Subscript():
     dependency_name = ""
     lower = None
@@ -100,14 +97,25 @@ class BinOp():
     operation: Operation = None
     left = None
     right = None
+
+# Represents 'object.attribute'
+# Attribute can be a 'normal' operation (like sum) or a custom attribute
+# If its a operation it will be of type operation otherwise it will be a string
+class Attribute():
+    operand: Reference = None
+    attribute = None
+    
+    def __init__(self, operand, attribute):
+        self.operand = operand
+        self.attribute = attribute
     
 class Call():
     operand = None
-    operation: Operation = None
+    arguments = []
     
-    def __init__(self, operand, operation):
+    def __init__(self, operand, arguments):
         self.operand = operand
-        self.operation = operation
+        self.arguments = arguments
 
 class Loop():
     condition = None

@@ -148,23 +148,28 @@ plt.tight_layout()
 plt.show() """
 
 
-# A simple program for each transformation rule
+# --- A simple program for each transformation rule ---
+
 # Works
 def assign_example():
     test = 5
     return test
 
-# TODO: Doesn't work
+# Works
+# TODO: Also handle [1,2,3].sum()?
 def call_example():
     ages = [1, 2, 3] 
     test = ages.sum()
     return test
 
+# Works
 def compare_example():
     x = 8
     test = 5 < x <= 10  
     return test
 
+# TODO: Doesn't work
+# TODO: Ensure we can handle 'expression if condition else expression'
 def if_example():
     x = 5
     y = 0
@@ -175,10 +180,12 @@ def if_example():
 
     return y
     
+# TODO: Make sure we can still handle 'ages_dp' etc.
+
 
 ages = pv.Uniform("ages", lower=0, upper=100, num_elements=20)
 ds = pv.Dataset(input_specs=[ages])
-program = pv.Program("output", dataset=ds, output_type=pv.Float, function=call_example)
+program = pv.Program("output", dataset=ds, output_type=pv.Float, function=if_example)
 program.add_observation("output==44", precision=0.1)
 
 trace: az.InferenceData = pv.infer(program, cores=4, draws=10_000, method="pymc3", use_new_method=True)
