@@ -81,9 +81,10 @@ class Uniform(Continuous):
             lower = hyper_dist_1.pymc3_dist(hyper_name_1, [])
             upper = hyper_dist_2.pymc3_dist(hyper_name_2, [])
         if (self.num_elements == -1):
+            print("OMG")
             return pm.Uniform(name, lower=lower, upper=upper)
         else:
-
+            print("HEEER")
             return pm.Uniform(name, lower=lower, upper=upper, shape=self.num_elements)
 
     def get_params(self):

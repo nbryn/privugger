@@ -243,12 +243,12 @@ def infer(prog, cores=2, chains=2, draws=500, method="pymc3", return_model=False
             ftp = FunctionTypeDecorator()
             decorators = _from_distributions_to_theano(input_specs, output)
             if use_new_method:
-                (program_params, dependency_map) = ftp.lift(program, decorators, True)
+                (program_params, custom_nodes) = ftp.lift(program, decorators, True)
                 model = pm.Model()
                 trace = None
                 with model:
                     prior = get_prior(num_specs, input_specs)
-                    model_builder = ModelBuilder(dependency_map, program_params, global_priors, prog.dataset.input_specs[0].num_elements, prior, prog)
+                    model_builder = ModelBuilder(custom_nodes, program_params, global_priors, prog.dataset.input_specs[0].num_elements, prior, prog)
                     model_builder.build()
                                                                  
                     print("SAMPLING")

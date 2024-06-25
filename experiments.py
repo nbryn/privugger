@@ -83,33 +83,6 @@ def temp_pymc(ages):
 
     return model
 
-
-def masking(ages):
-    output = ages
-    for i in range(len(ages)):
-        if 0 <= ages[i] < 25:
-            output[i] = 0
-        if 25 <= ages[i] < 50:
-            output[i] = 1
-        if 50 <= ages[i] < 75:
-            output[i] = 2
-        if 75 <= ages[i]:
-            output[i] = 3
-
-    return output
-
-
-def ages_dp(ages):
-    #ages0 = ages[0]
-    avg = ages.sum() / ages.size
-    epsilon = 0.1
-    delta = 100 / ages.size # assumes ages are in the interval [0-100]
-    nu = np.random.laplace(loc=0.0, scale=delta / epsilon)
-    dp_avg = avg + nu
-
-    return dp_avg
-
-
 def ages_dp_pymc():
     with pm.Model() as model:
         ages = pm.Uniform('ages', lower=0, upper=100, size=100)
@@ -168,7 +141,7 @@ def compare_example():
     test = 5 < x <= 10  
     return test
 
-# TODO: Doesn't work
+# Works
 # TODO: Ensure we can handle 'expression if condition else expression'
 def if_example():
     x = 5
@@ -180,12 +153,59 @@ def if_example():
 
     return y
     
-# TODO: Make sure we can still handle 'ages_dp' etc.
+# Works
+def ages_dp(ages):
+    ages0 = ages[0]
+    avg = ages.sum() / ages.size
+    epsilon = 0.1
+    delta = 100 / ages.size # assumes ages are in the interval [0-100]
+    nu = np.random.laplace(loc=0.0, scale=delta / epsilon)
+    dp_avg = avg + nu
 
+    return dp_avg
+
+# TODO: Doesn't work
+# Missing whole 'elif' part in output
+def masking1(ages):
+    if ages[0] < 35:
+        subset1 = ages[:20]
+        avg1 = subset1.sum() / subset1.size
+        return avg1
+
+    if ages[0] < 40:
+        subset2 = ages[:40]
+        avg2 = subset2.sum() / subset2.size
+        return avg2
+
+    elif ages[0] < 45:
+        subset3 = ages[:60]
+        avg3 = subset3.sum() / subset3.size
+        return avg3
+
+    return ages.sum() / ages.size
+
+
+
+
+
+
+def masking2(ages):
+    output = ages
+    for i in range(len(ages)):
+        if 0 <= ages[i] < 25:
+            output[i] = 0
+        if 25 <= ages[i] < 50:
+            output[i] = 1
+        if 50 <= ages[i] < 75:
+            output[i] = 2
+        if 75 <= ages[i]:
+            output[i] = 3
+
+    return output
 
 ages = pv.Uniform("ages", lower=0, upper=100, num_elements=20)
 ds = pv.Dataset(input_specs=[ages])
-program = pv.Program("output", dataset=ds, output_type=pv.Float, function=if_example)
+program = pv.Program("output", dataset=ds, output_type=pv.Float, function=masking1)
 program.add_observation("output==44", precision=0.1)
 
 trace: az.InferenceData = pv.infer(program, cores=4, draws=10_000, method="pymc3", use_new_method=True)
