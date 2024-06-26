@@ -1,8 +1,5 @@
 # White-box analysis:
-My code can be found here:
-ast_types.py: privugger/transformer/PyMC3/ast_types.py
-Transformer: privugger/transformer/PyMC3/transformer.py
-ModelBuilder: privugger/inference/model_builder.py
+My code can be found in privugger/white_box
 
 # The following demonstrates how to use my method like described in my paper:
 

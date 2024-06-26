@@ -12,3 +12,4 @@ dependencies:
   - arviz
   - scipy=1.7
   - hypothesis=5.35.3
+  - pytensor

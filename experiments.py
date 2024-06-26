@@ -164,8 +164,7 @@ def ages_dp(ages):
 
     return dp_avg
 
-# TODO: Doesn't work
-# Missing whole 'elif' part in output
+# Works, but clarify whether the if's are handled correctly
 def masking1(ages):
     if ages[0] < 35:
         subset1 = ages[:20]
@@ -184,11 +183,12 @@ def masking1(ages):
 
     return ages.sum() / ages.size
 
-
-
-
-
-
+# TODO: Try other variations of loops
+# range(10)
+# range(0, 1)
+# while
+# TODO: Something wrong with the posterior here
+# Seems like only the first three entries in output is updated?
 def masking2(ages):
     output = ages
     for i in range(len(ages)):
@@ -203,9 +203,27 @@ def masking2(ages):
 
     return output
 
-ages = pv.Uniform("ages", lower=0, upper=100, num_elements=20)
+# Works
+def test_loop():
+    temp = [0, 1, 2]
+    for i in range(len(temp)):
+        temp[i] = i + 3
+        
+    return temp
+
+
+# TODO: Doesn't work
+def next():
+    temp = []
+    output = [1, 2, 3]
+    output[len(temp)] = 0
+
+    return output
+
+
+ages = pv.Uniform("ages", lower=0, upper=100, num_elements=100)
 ds = pv.Dataset(input_specs=[ages])
-program = pv.Program("output", dataset=ds, output_type=pv.Float, function=masking1)
+program = pv.Program("output", dataset=ds, output_type=pv.Float, function=masking2)
 program.add_observation("output==44", precision=0.1)
 
 trace: az.InferenceData = pv.infer(program, cores=4, draws=10_000, method="pymc3", use_new_method=True)
@@ -218,6 +236,16 @@ print(trace["posterior"])
 
 #print(mi_avg[0])
 #print(mi_dp_avg[0])
+#print(len(trace["posterior"]["ages"][0][0]))
+#print(len(trace["posterior"]["subset1 - 3"][0][0]))
+#print(len(trace["posterior"]["subset2 - 8"][0][0]))
+#print(len(trace["posterior"]["subset3 - 13"][0][0]))
 
+#print(trace["posterior"]["subset3 - 13"][0][0])
+#print(trace["posterior"]["subset3 - 13"][0][1])
+
+print(trace.posterior["ages"][0][0])
+print(trace.posterior["output"][0][0])
+print(trace.posterior["return"][0][0])
 
 plt.show()
