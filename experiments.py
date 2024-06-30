@@ -164,22 +164,15 @@ def ages_dp(ages):
 
     return dp_avg
 
-# Works, but clarify whether the if's are handled correctly
+# TODO: Variables like subset1 should only exist if condition is true
 def masking1(ages):
     if ages[0] < 35:
+        t = 2
         subset1 = ages[:20]
+        ht = [0]
+        ht1 = []
         avg1 = subset1.sum() / subset1.size
         return avg1
-
-    if ages[0] < 40:
-        subset2 = ages[:40]
-        avg2 = subset2.sum() / subset2.size
-        return avg2
-
-    elif ages[0] < 45:
-        subset3 = ages[:60]
-        avg3 = subset3.sum() / subset3.size
-        return avg3
 
     return ages.sum() / ages.size
 
@@ -187,8 +180,6 @@ def masking1(ages):
 # range(10)
 # range(0, 1)
 # while
-# TODO: Something wrong with the posterior here
-# Seems like only the first three entries in output is updated?
 def masking2(ages):
     output = ages
     for i in range(len(ages)):
@@ -203,14 +194,6 @@ def masking2(ages):
 
     return output
 
-# Works
-def test_loop():
-    temp = [0, 1, 2]
-    for i in range(len(temp)):
-        temp[i] = i + 3
-        
-    return temp
-
 
 # TODO: Doesn't work
 def next():
@@ -223,7 +206,7 @@ def next():
 
 ages = pv.Uniform("ages", lower=0, upper=100, num_elements=100)
 ds = pv.Dataset(input_specs=[ages])
-program = pv.Program("output", dataset=ds, output_type=pv.Float, function=masking2)
+program = pv.Program("output", dataset=ds, output_type=pv.Float, function=masking1)
 program.add_observation("output==44", precision=0.1)
 
 trace: az.InferenceData = pv.infer(program, cores=4, draws=10_000, method="pymc3", use_new_method=True)
@@ -246,6 +229,6 @@ print(trace["posterior"])
 
 print(trace.posterior["ages"][0][0])
 print(trace.posterior["output"][0][0])
-print(trace.posterior["return"][0][0])
+print(trace.posterior["return - 13"][0][0])
 
 plt.show()
