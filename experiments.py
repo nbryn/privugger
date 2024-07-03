@@ -124,21 +124,10 @@ plt.show() """
 # --- A simple program for each transformation rule ---
 
 # Works
-def assign_example():
-    test = 5
-    return test
-
-# Works
 # TODO: Also handle [1,2,3].sum()?
 def call_example():
     ages = [1, 2, 3] 
     test = ages.sum()
-    return test
-
-# Works
-def compare_example():
-    x = 8
-    test = 5 < x <= 10  
     return test
 
 # Works
@@ -164,18 +153,6 @@ def ages_dp(ages):
 
     return dp_avg
 
-# TODO: Variables like subset1 should only exist if condition is true
-def masking1(ages):
-    if ages[0] < 35:
-        t = 2
-        subset1 = ages[:20]
-        ht = [0]
-        ht1 = []
-        avg1 = subset1.sum() / subset1.size
-        return avg1
-
-    return ages.sum() / ages.size
-
 # TODO: Try other variations of loops
 # range(10)
 # range(0, 1)
@@ -195,6 +172,20 @@ def masking2(ages):
     return output
 
 
+# TODO: Variables like subset1 should only exist if condition is true
+def masking1(ages):
+    if ages[0] < 35:
+        t = 2
+        subset1 = ages[:20]
+        ht = [0]
+        ht1 = []
+        avg1 = subset1.sum() / subset1.size
+        return avg1
+
+    return ages.sum() / ages.size
+
+
+
 # TODO: Doesn't work
 def next():
     temp = []
@@ -204,7 +195,7 @@ def next():
     return output
 
 
-ages = pv.Uniform("ages", lower=0, upper=100, num_elements=100)
+ages = pv.Uniform("ages", lower=0, upper=100, num_elements=20)
 ds = pv.Dataset(input_specs=[ages])
 program = pv.Program("output", dataset=ds, output_type=pv.Float, function=masking1)
 program.add_observation("output==44", precision=0.1)
@@ -228,7 +219,7 @@ print(trace["posterior"])
 #print(trace["posterior"]["subset3 - 13"][0][1])
 
 print(trace.posterior["ages"][0][0])
-print(trace.posterior["output"][0][0])
+print(trace.posterior["output - 2"][0][0])
 print(trace.posterior["return - 13"][0][0])
 
 plt.show()

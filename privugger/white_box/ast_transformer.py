@@ -9,27 +9,7 @@ class AstTransformer:
         custom_nodes = self.__collect_and_sort_by_line_number(
             self.__collect_top_level_nodes(tree)
         )
-
-        """ for node in custom_nodes:
-            if isinstance(node, model.Loop):
-                for c in node.body:
-                    print("NEW")
-                    print(c.name_with_line_number)
-                    print(c.condition)
-                    if isinstance(c.condition, model.Compare2):
-                        print(c.condition.left_operation)
-                        print(c.condition.right_operation)
-                        print(c.condition.left.value)
-                        print(c.condition.middle.operand)
-                        print(c.condition.middle.index)
-                        print(c.condition.right.value)
-                    
-                    if isinstance(c.condition, model.Compare):
-                        print(c.condition.operation)
-                        print(c.condition.left)
-                        print(c.condition.right)
-                     """
-                    
+                                      
         return (function_params, custom_nodes)
 
     def __collect_and_sort_by_line_number(self, nodes: List[ast.AST]):

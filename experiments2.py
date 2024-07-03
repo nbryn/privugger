@@ -59,6 +59,10 @@ def example1(ages):
     return 5
 
 
+
+
+
+
 # Should reassignment be treated as a new variable?
 def example2():
     x = 10
