@@ -173,8 +173,10 @@ def masking2(ages):
 
 
 # TODO: Variables like subset1 should only exist if condition is true
+# TODO: Variables outside if should only exist if condition is not true (and if has return)
 def masking1(ages):
-    if ages[0] < 35:
+    h = 10
+    if h > 35:
         t = 2
         subset1 = ages[:20]
         ht = [0]
@@ -182,6 +184,7 @@ def masking1(ages):
         avg1 = subset1.sum() / subset1.size
         return avg1
 
+    mt = 2
     return ages.sum() / ages.size
 
 

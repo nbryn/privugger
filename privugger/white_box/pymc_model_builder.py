@@ -38,6 +38,8 @@ class PyMCModelBuilder:
             self.__map_to_pycm_var(node)
 
     def __map_to_pycm_var(self, node: model.CustomNode, condition=None):
+        print("MAP TO")
+        print(type(node))
         if isinstance(node, model.Subscript):
             return self.__handle_subscript(node)
 
@@ -57,9 +59,11 @@ class PyMCModelBuilder:
             return self.program_variables[node.reference_to]
 
         if isinstance(node, model.Return):
-            (value, _) = self.__map_to_pycm_var(node.value)
-            pm.Deterministic(node.name_with_line_number, value)
+            value = self.__map_to_pycm_var(node.value)
+            if isinstance(value, tuple):
+                value = value[0]
 
+            pm.Deterministic(node.name_with_line_number, value)
             return
 
         if isinstance(node, model.Assign):
@@ -135,7 +139,6 @@ class PyMCModelBuilder:
 
         self.program_variables[node.name] = (tensor_var, size)
         pm.Deterministic(pymc_variable_name, tensor_var)
-
         return tensor_var
 
     def __handle_subscript(self, node: model.Subscript):
@@ -182,6 +185,7 @@ class PyMCModelBuilder:
 
     def __handle_attribute(self, node: model.Attribute):
         (operand, size) = self.__map_to_pycm_var(node.operand)
+        print("LAAAST")
         if node.attribute == model.Operation.SIZE:
             return size
 
@@ -202,11 +206,12 @@ class PyMCModelBuilder:
     # Default values for variables declared inside if
     # Used when the condition is not true
     # TODO:
+    # Attribute/Call etc will always be the default value no matter the operation?
     # Handle reference to other variable
     # Handle list (other data structures?)
     def __get_default_value(self, node):
-        # print("HERE")
-        # print(node)
+        print("GET DEFAULT VALUE")
+        print(node)
         if isinstance(node, model.Constant):
             if isinstance(node.value, int):
                 return (tt.as_tensor_variable(0), None)
@@ -215,23 +220,28 @@ class PyMCModelBuilder:
                 return (tt.as_tensor_variable(0.0), None)
 
         if isinstance(node, model.ListNode):
-            pass
+            if len(node.values) == 0:
+                return ([], 0)
+
+            return (
+                tt.as_tensor_variable([tt.as_tensor_variable(0)]) * len(node.values),
+                len(node.values),
+            )
 
         if isinstance(node, model.Subscript):
             (operand, _) = self.program_variables[node.operand]
-            lower = self.__map_to_pycm_var(node.value.lower) if node.value.lower else 0
-            upper = (
-                self.__map_to_pycm_var(node.value.upper)
-                if node.value.upper
-                else len(operand)
+            lower = self.__map_to_pycm_var(node.lower) if node.lower else 0
+            upper = self.__map_to_pycm_var(node.upper) if node.upper else len(operand)
+
+            # TODO: Check if continuous or discrete?
+            return (
+                tt.as_tensor_variable([tt.as_tensor_variable(0)] * (upper - lower)),
+                upper - lower,
             )
 
-            # Argument can only be distribution (list[int])
-            # TODO: Check if continuous or discrete?
-            if node.value.operand in self.program_arguments:
-                return ([0.0] * (upper - lower), upper - lower)
-
-        return
+        # Attribute/Call etc will always be the default value no matter the operation
+        # Distinguish between float and int?
+        return (tt.as_tensor_variable(0), None)
 
     def __handle_loop(self, node: model.Loop):
         start = self.__map_to_pycm_var(node.start)

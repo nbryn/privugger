@@ -9,7 +9,7 @@ class AstTransformer:
         custom_nodes = self.__collect_and_sort_by_line_number(
             self.__collect_top_level_nodes(tree)
         )
-                                      
+        
         return (function_params, custom_nodes)
 
     def __collect_and_sort_by_line_number(self, nodes: List[ast.AST]):
@@ -21,7 +21,7 @@ class AstTransformer:
         )
 
     def __collect_top_level_nodes(self, root: ast.AST):
-        # This assumes that the root is a 'ast.FunctionDef'
+        # Assumes that the root is a 'ast.FunctionDef'
         nodes = []
         for child_node in ast.iter_child_nodes(root.body[0]):
             if child_node.__class__ is not ast.arguments:
@@ -35,10 +35,11 @@ class AstTransformer:
         return sorted(nodes, key=lambda node: node.lineno)
 
     def __map_to_custom_type(self, node: ast.AST):
-        # print("NEW")
-        # print(ast.dump(node))
         if not node:
             return None
+        
+        #print("NEW")
+        #print(ast.dump(node))
 
         if isinstance(node, ast.If):
             # TODO: Move to 'handle_if' method
