@@ -142,7 +142,7 @@ def if_example():
 
     return y
     
-# Works
+# TODO: Ensure that this work after implementing neural network example
 def ages_dp(ages):
     ages0 = ages[0]
     avg = ages.sum() / ages.size
@@ -187,6 +187,56 @@ def masking1(ages):
     mt = 2
     return ages.sum() / ages.size
 
+# TODO: Try to model this in PyMC with and without using switch
+
+
+def temp(ages):
+    # A
+    if ages[0] < 10:
+        a = ages[0]
+        return a
+    
+    # B
+    if ages[0] < 50:
+        b = ages[1]
+        return b
+
+    # C
+    c = ages[2]
+    return c
+
+def neural_network(ages):
+    # Activation function
+    def sigmoid(x):
+        return 1 / (1 + np.exp(-x))
+
+    # Inputs for XOR problem
+    X = np.array([[0, 0],
+                [0, 1],
+                [1, 0],
+                [1, 1]])
+
+    # Trained weights
+    weights_input_hidden = np.array([[ 5.07377189,  6.31596517, -7.34522284, -6.91238663],
+                                    [ 5.09765788, -5.87056886,  7.4695342 , -7.20017149]])
+
+    weights_hidden_output = np.array([[-10.05563681],
+                                    [ 10.09224415],
+                                    [-10.11382543],
+                                    [ 10.15214779]])
+
+    # Forward propagation using the trained weights
+    hidden_layer_input = np.dot(X, weights_input_hidden)
+    hidden_layer_output = sigmoid(hidden_layer_input)
+
+    final_layer_input = np.dot(hidden_layer_output, weights_hidden_output)
+    final_layer_output = sigmoid(final_layer_input)
+
+    #print("Output using pre-trained weights: ")
+    #print(final_layer_output)
+
+
+# TODO: Handle function calls
 
 
 # TODO: Doesn't work
@@ -200,7 +250,7 @@ def next():
 
 ages = pv.Uniform("ages", lower=0, upper=100, num_elements=20)
 ds = pv.Dataset(input_specs=[ages])
-program = pv.Program("output", dataset=ds, output_type=pv.Float, function=masking1)
+program = pv.Program("output", dataset=ds, output_type=pv.Float, function=neural_network)
 program.add_observation("output==44", precision=0.1)
 
 trace: az.InferenceData = pv.infer(program, cores=4, draws=10_000, method="pymc3", use_new_method=True)

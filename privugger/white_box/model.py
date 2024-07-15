@@ -4,15 +4,16 @@ from enum import Enum
 
 class Operation(Enum):
     ADD = 1
-    DIVIDE = 2
-    MULTIPLY = 3
-    EQUAL = 4
-    LT = 5
-    LTE = 6
-    GT = 7
-    GTE = 8
-    SUM = 9
-    SIZE = 10
+    SUB = 2
+    DIVIDE = 3
+    MULTIPLY = 4
+    EQUAL = 5
+    LT = 6
+    LTE = 7
+    GT = 8
+    GTE = 9
+    SUM = 10
+    SIZE = 11
 
 
 class CustomNode:
@@ -32,6 +33,7 @@ class Assign(CustomNode):
     def __init__(self, variable_name, line_number, value):
         CustomNode.__init__(self, variable_name, line_number)
         self.value = value
+
 
 # Represents assignment like: 'var[i] = 5'
 class AssignIndex(Assign):
@@ -70,21 +72,6 @@ class Loop(CustomNode):
         self.start = start
         self.stop = stop
         self.body = body
-
-
-class Distribution(CustomNode):
-    scale = None
-    loc = None
-
-    def __init__(self, name, line_number, scale, loc):
-        CustomNode.__init__(self, name, line_number)
-        self.scale = scale
-        self.loc = loc
-
-
-class Laplace(Distribution):
-    def __init__(self, line_number, loc, scale):
-        Distribution.__init__(self, "Laplace", line_number, scale, loc)
 
 
 class Reference(CustomNode):
@@ -165,10 +152,20 @@ class Subscript(CustomNode):
         self.upper = upper
 
 
+class UnaryOp(CustomNode):
+    operation: Operation = None
+    operand: CustomNode = None
+
+    def __init__(self, line_number, operand, operation):
+        CustomNode.__init__(self, "UnaryOp", line_number)
+        self.operation = operation
+        self.operand = operand
+
+
 class BinOp(CustomNode):
     operation: Operation = None
-    right = None
-    left = None
+    right: CustomNode = None
+    left: CustomNode = None
 
     def __init__(self, line_number, left, right, operation):
         CustomNode.__init__(self, "BinOp", line_number)
@@ -191,10 +188,54 @@ class Attribute(CustomNode):
 
 
 class Call(CustomNode):
-    arguments = []
+    arguments: List[CustomNode] = []
     operand = None
 
     def __init__(self, line_number, operand, arguments):
         CustomNode.__init__(self, "Call", line_number)
         self.arguments = arguments
         self.operand = operand
+
+
+class FunctionDef(CustomNode):
+    arguments: List[CustomNode] = []
+    body: List[CustomNode] = []
+
+    def __init__(self, name, line_number, arguments, body):
+        CustomNode.__init__(self, name, line_number)
+        self.arguments = arguments
+        self.body = body
+
+
+class NumpyOperation(Enum):
+    array = 1
+    exp = 2
+    dot = 3
+
+
+class Numpy(CustomNode):
+    def __init__(self, line_number):
+        CustomNode.__init__(self, "numpy", line_number)
+
+
+class NumpyFunction(Numpy):
+    operation: NumpyOperation = None
+
+    def __init__(self, line_number, operation):
+        Numpy.__init__(self, line_number)
+        self.operation = operation
+
+
+class Distribution(Numpy):
+    scale = None
+    loc = None
+
+    def __init__(self, name, line_number, scale, loc):
+        Numpy.__init__(self, name, line_number)
+        self.scale = scale
+        self.loc = loc
+
+
+class Laplace(Distribution):
+    def __init__(self, line_number, loc, scale):
+        Distribution.__init__(self, "Laplace", line_number, scale, loc)
