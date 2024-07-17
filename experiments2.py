@@ -75,3 +75,95 @@ def example2():
     s = 2 + y
     
     return y
+
+
+# Report
+# Why is this useful?
+# Simple example: Privacy
+# Complicated example: Neural Network
+# Scalability: Neural Network
+
+
+# All variables must be declared at the outermost (function) scope?
+# - Maybe we dont need the above restriction?
+# Maximum one return at the end of program
+# Remember to discuss why in the report
+def temp(ages):
+    # A
+    a
+    if ages[0] < 10:
+        a = ages[0]
+
+        #unique variable = a
+    
+    # B
+    if ages[0] < 50:
+        b = ages[1]
+        # unique b
+
+    # C
+    c = ages[2]
+    return c
+
+
+
+
+
+
+# We should 
+def temp2(ages):
+    def f(t):
+        h = 5 # Should be in the trace. Keep track of number of invocations for f
+        g = 6
+        return t + h + g
+
+    th = f(1)
+    th1 = f(2)
+    
+    return th + th1
+
+
+
+
+def neural_network(ages):
+    # Activation function
+    def sigmoid(x):
+        return 1 / (1 + np.exp(-x))
+
+    # Inputs for XOR problem
+    X = np.array([[0, 0],
+                [0, 1],
+                [1, 0],
+                [1, 1]])
+
+    # Trained weights
+    weights_input_hidden = np.array([[ 5.07377189,  6.31596517, -7.34522284, -6.91238663],
+                                    [ 5.09765788, -5.87056886,  7.4695342 , -7.20017149]])
+
+    weights_hidden_output = np.array([[-10.05563681],
+                                    [ 10.09224415],
+                                    [-10.11382543],
+                                    [ 10.15214779]])
+
+    # Forward propagation using the trained weights
+    hidden_layer_input = np.dot(X, weights_input_hidden)
+    hidden_layer_output = sigmoid(hidden_layer_input)
+
+    final_layer_input = np.dot(hidden_layer_output, weights_hidden_output)
+    final_layer_output = sigmoid(final_layer_input)
+
+    return final_layer_output
+
+# TODO: Get this to work
+def neural_network2(input):
+    # Activation function
+    def sigmoid(x):
+        return 1 / (1 + np.exp(-x))
+    
+    weights = [2, 5, 7]
+
+    # Compute output -> logistic(Σ_i x_i·w_i)
+    output = np.dot(input, weights)
+    final_output = sigmoid(output)
+
+    return final_output

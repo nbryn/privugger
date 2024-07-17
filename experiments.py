@@ -142,17 +142,6 @@ def if_example():
 
     return y
     
-# TODO: Ensure that this work after implementing neural network example
-def ages_dp(ages):
-    ages0 = ages[0]
-    avg = ages.sum() / ages.size
-    epsilon = 0.1
-    delta = 100 / ages.size # assumes ages are in the interval [0-100]
-    nu = np.random.laplace(loc=0.0, scale=delta / epsilon)
-    dp_avg = avg + nu
-
-    return dp_avg
-
 # TODO: Try other variations of loops
 # range(10)
 # range(0, 1)
@@ -170,40 +159,6 @@ def masking2(ages):
             output[i] = 3
 
     return output
-
-
-# TODO: Variables like subset1 should only exist if condition is true
-# TODO: Variables outside if should only exist if condition is not true (and if has return)
-def masking1(ages):
-    h = 10
-    if h > 35:
-        t = 2
-        subset1 = ages[:20]
-        ht = [0]
-        ht1 = []
-        avg1 = subset1.sum() / subset1.size
-        return avg1
-
-    mt = 2
-    return ages.sum() / ages.size
-
-# TODO: Try to model this in PyMC with and without using switch
-
-
-def temp(ages):
-    # A
-    if ages[0] < 10:
-        a = ages[0]
-        return a
-    
-    # B
-    if ages[0] < 50:
-        b = ages[1]
-        return b
-
-    # C
-    c = ages[2]
-    return c
 
 def neural_network(ages):
     # Activation function
@@ -232,11 +187,21 @@ def neural_network(ages):
     final_layer_input = np.dot(hidden_layer_output, weights_hidden_output)
     final_layer_output = sigmoid(final_layer_input)
 
-    #print("Output using pre-trained weights: ")
-    #print(final_layer_output)
+    return final_layer_output
 
+# TODO: Get this to work
+def neural_network2(input):
+    # Activation function
+    def sigmoid(x):
+        return 1 / (1 + np.exp(-x))
+    
+    weights = [2, 5, 7]
 
-# TODO: Handle function calls
+    # Compute output -> logistic(Σ_i x_i·w_i)
+    output = np.dot(input, weights)
+    final_output = sigmoid(output)
+
+    return final_output
 
 
 # TODO: Doesn't work
@@ -248,9 +213,21 @@ def next():
     return output
 
 
+# TODO: Confirm trace look as expected. neural_network2 afterwards
+def ages_dp(ages):
+    ages0 = ages[0]
+    avg = ages.sum() / ages.size
+    epsilon = 0.1
+    delta = 100 / ages.size # assumes ages are in the interval [0-100]
+    nu = np.random.laplace(loc=0.0, scale=delta / epsilon)
+    dp_avg = avg + nu
+
+    return dp_avg
+
+
 ages = pv.Uniform("ages", lower=0, upper=100, num_elements=20)
 ds = pv.Dataset(input_specs=[ages])
-program = pv.Program("output", dataset=ds, output_type=pv.Float, function=neural_network)
+program = pv.Program("output", dataset=ds, output_type=pv.Float, function=ages_dp)
 program.add_observation("output==44", precision=0.1)
 
 trace: az.InferenceData = pv.infer(program, cores=4, draws=10_000, method="pymc3", use_new_method=True)
@@ -271,8 +248,14 @@ print(trace["posterior"])
 #print(trace["posterior"]["subset3 - 13"][0][0])
 #print(trace["posterior"]["subset3 - 13"][0][1])
 
-print(trace.posterior["ages"][0][0])
-print(trace.posterior["output - 2"][0][0])
-print(trace.posterior["return - 13"][0][0])
+#print(trace.posterior["ages"][0][0])
+#print(trace.posterior["output - 2"][0][0])
+#print("ACTUAL: ")
+#print(neural_network([]))
+#print("PYMC: ")
+print(trace.posterior["return - 28"][0][0])
+print(len(trace.posterior["return - 28"][0][0]))
+
+
 
 plt.show()

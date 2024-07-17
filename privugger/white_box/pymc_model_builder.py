@@ -38,9 +38,11 @@ class PyMCModelBuilder:
         for node in self.custom_nodes:
             self.__map_to_pycm_var(node)
 
-    def __map_to_pycm_var(self, node: model.CustomNode, condition=None, in_function=False):
-        print("MAP TO")
-        print(type(node))
+    def __map_to_pycm_var(
+        self, node: model.CustomNode, condition=None, in_function=False
+    ):
+        # print("MAP TO")
+        # print(type(node))
         if isinstance(node, model.Subscript):
             return self.__handle_subscript(node)
 
@@ -52,9 +54,12 @@ class PyMCModelBuilder:
 
         if isinstance(node, model.Index):
             return self.__handle_index(node)
-        
+
         if isinstance(node, model.UnaryOp):
             operand = self.__map_to_pycm_var(node.operand, condition, in_function)
+            if isinstance(operand, tuple):
+                operand = operand[0]
+
             return self.__to_pymc_operation(node.operation, operand)
 
         if isinstance(node, model.BinOp):
@@ -67,10 +72,10 @@ class PyMCModelBuilder:
             value = self.__map_to_pycm_var(node.value, condition, in_function)
             if isinstance(value, tuple):
                 value = value[0]
-            
+
             if in_function:
                 return value
-            
+
             pm.Deterministic(node.name_with_line_number, value)
             return
 
@@ -91,31 +96,49 @@ class PyMCModelBuilder:
 
         if isinstance(node, model.ListNode):
             return list(map(self.__map_to_pycm_var, node.values))
-        
-        if isinstance(node, model.FunctionDef):
-            self.program_functions[node.name] = node.body
-            return
-        
-        # TODO: Handle all numpy here
-        if isinstance(node, model.Numpy):
-            pass
 
-        if isinstance(node, model.Distribution):
-            if isinstance(node, model.Laplace):
+        if isinstance(node, model.FunctionDef):
+            self.program_functions[node.name] = (node.body, node.arguments)
+            return
+
+        if isinstance(node, model.Numpy):
+            # TODO: Extract to handle numpy
+            if isinstance(node, model.NumpyFunction):
+                mapped_arguments = list(map(self.__map_to_pycm_var, node.arguments))
+                if node.operation == model.NumpyOperation.ARRAY:
+                    return mapped_arguments[0]
+
+                if node.operation == model.NumpyOperation.EXP:
+                    return pm_math.exp(mapped_arguments[0])
+
+                if node.operation == model.NumpyOperation.DOT:
+                    return pm_math.dot(mapped_arguments[0][0], mapped_arguments[1][0])
+
+                print(type(node))
+                raise TypeError("Unknown numpy operation")
+
+            if isinstance(node, model.NumpyDistribution):
                 loc = self.__map_to_pycm_var(node.loc)
                 scale = self.__map_to_pycm_var(node.scale)
-                return pm.Laplace(node.name_with_line_number, loc, scale)
+                if node.distribution == model.Distribution.NORMAL:
+                    return pm.Normal(node.name_with_line_number, loc, scale)
+
+                if node.distribution == model.Distribution.LAPLACE:
+                    return pm.Laplace(node.name_with_line_number, loc, scale)
+
+                print(type(node))
+                raise TypeError("Unknown numpy distribution")
 
         print(type(node))
         raise TypeError("Unsupported custom ast type")
 
-    def __handle_assign(self, node: model.Assign, condition=None):
-        variable = self.__map_to_pycm_var(node.value)
+    def __handle_assign(self, node: model.Assign, condition=None, in_function=False):
+        variable = self.__map_to_pycm_var(node.value, condition)
         size = len(variable) if isinstance(variable, Sized) else None
         if isinstance(variable, tuple):
             variable = variable[0]
 
-        # Handle assignment to parameter/argument
+        # This handles assignment to parameter/argument
         # We shouldn't (and can't) change the input as it's a distribution
         if (
             isinstance(node.value, model.Reference)
@@ -154,7 +177,10 @@ class PyMCModelBuilder:
                 tensor_var = pm_math.switch(condition, value, default_value)
 
         self.program_variables[node.name] = (tensor_var, size)
-        pm.Deterministic(pymc_variable_name, tensor_var)
+
+        if not in_function:
+            pm.Deterministic(pymc_variable_name, tensor_var)
+
         return tensor_var
 
     def __handle_subscript(self, node: model.Subscript):
@@ -210,38 +236,34 @@ class PyMCModelBuilder:
     def __handle_call(self, node: model.Call):
         if isinstance(node.operand, model.Attribute):
             return self.__map_to_pycm_var(node.operand)
-        
+
         mapped_arguments = list(map(self.__map_to_pycm_var, node.arguments))
-        
-        # TODO: Extract to handle numpy
-        if isinstance(node.operand, model.Numpy):
-            if isinstance(node.operand, model.NumpyFunction):
-                if node.operand.operation == model.NumpyOperation.array:
-                    return mapped_arguments
-                
-                if node.operand.operation == model.NumpyOperation.exp:
-                    return pm_math.exp(mapped_arguments[0])
-                
-                if node.operand.operation == model.NumpyOperation.dot:
-                    return pm_math.dot(mapped_arguments[0][0], mapped_arguments[1][0])
-        
-            else:
-                print("LOL")
-                # TODO: Handle numpy distribution (np.random.distribution)
-                pass
-        
-        
+
         if isinstance(node.operand, model.Reference):
             # TODO: Function call - Extract to handle_function_call
             if node.operand.reference_to in self.program_functions:
-                function_body = self.program_functions[node.operand.reference_to]
+                (function_body, function_arguments) = self.program_functions[
+                    node.operand.reference_to
+                ]
                 # TODO: Execute function body. Variables should NOT be added to program_variables
                 # And return should actually return the value instead of creating program variable
-                pass
+
+                for index, argument_name in enumerate(function_arguments):
+                    self.program_variables[argument_name] = mapped_arguments[index]
+
+                # TODO: This doesn't handle function with multiple returns (returns in if)
+                # as it return the first time a return node is encountered on top level.
+                # Returns inside ifs in functions should be handled in __handle_if
+                for child_node in function_body:
+                    if isinstance(child_node, model.Return):
+                        return self.__map_to_pycm_var(child_node, None, True)
+
+                    self.__map_to_pycm_var(child_node, None, True)
 
             # TODO: Will it always be a reference to a function?
+            print(node.operand.reference_to)
             raise TypeError("Reference to unknown function")
-        
+
         print(type(node.operand))
         raise TypeError("Unsupported call operand")
 
@@ -334,15 +356,15 @@ class PyMCModelBuilder:
         if operation == model.Operation.SUB:
             if right:
                 return operand - right
-            
+
             return -operand
 
         if operation == model.Operation.ADD:
             if right:
                 return operand + right
-        
+
             return +operand
-        
+
         if operation == model.Operation.SUM:
             return (
                 pm_math.sum(operand)

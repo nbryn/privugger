@@ -82,13 +82,8 @@ class AstTransformer:
         if isinstance(node, ast.UnaryOp):
             operation = self.__map_operation(node.op)
             operand = self.__map_to_custom_type(node.operand)
-            
-            return model.UnaryOp(
-                    node.lineno,
-                    operand,
-                    operation
-                )
 
+            return model.UnaryOp(node.lineno, operand, operation)
 
         if isinstance(node, ast.Assign):
             return self.__handle_assign(node)
@@ -100,11 +95,6 @@ class AstTransformer:
             return model.Reference(node.lineno, node.id)
 
         if isinstance(node, ast.Attribute):
-            # TODO: Extract to handle numpy
-            if node.value.id == "np":
-                np_operation = self.__map_numpy_operation(node.attr)
-
-                return model.NumpyFunction(node.lineno, np_operation)
 
             operand = self.__map_to_custom_type(node.value)
             return model.Attribute(
@@ -124,30 +114,8 @@ class AstTransformer:
         raise TypeError("ast type not supported")
 
     def __handle_call(self, node: ast.Call):
-        print("NEW")
-        print(ast.dump(node))
-
-        # TODO: Check other programs where this is relevant
-        """ if isinstance(node.func, ast.Name):
-            print("IN HERE BOYS")
-            print(ast.dump(node))
-            print("TEMP")
-            print(ast.dump(node.func))
-            attribute = self.__map_attribute(node.func.id)
-            operand = self.__map_to_custom_type(node.args[0])
-            return model.Attribute(node.lineno, operand, attribute)
- """
-        """ if isinstance(node.func.value, ast.Attribute):
-            print("IN HERE BOYS")
-            # TODO: Handle numpy distributions in a more organized way
-            if (
-                isinstance(node.func.value.value, ast.Name)
-                and node.func.value.value.id == "np"
-            ):
-                if node.func.attr == "laplace":
-                    loc = self.__map_to_custom_type(node.keywords[0].value)
-                    scale = self.__map_to_custom_type(node.keywords[1].value)
-                    return model.Laplace(node.lineno, loc, scale) """
+        if self.__is_numpy(node.func):
+            return self.__handle_numpy(node)
 
         # TODO: Can operand both be a function and an object?
         operand = self.__map_to_custom_type(node.func)
@@ -239,6 +207,47 @@ class AstTransformer:
 
         # Non 'common' attribute: Return the name of the attribute
         return attribute_name
+    
+    # TODO: Extract all numpy functionality to class?
+    # Consider if anything else can be extracted
+    def __handle_numpy(self, node: ast.Call):
+        def is_distribution(value):
+            return any(
+                value == distribution.value.lower() for distribution in model.Distribution
+            )
+        
+        if is_distribution(node.func.attr):
+            return self.__handle_numpy_distribution(node)
+
+        np_operation = self.__map_numpy_operation(node.attr)
+        mapped_arguments = list(map(self.__map_to_custom_type, node.args))
+        return model.NumpyFunction(node.lineno, np_operation, mapped_arguments)
+    
+    def __is_numpy(self, func):
+        if isinstance(func.value, ast.Name):
+            return func.value.id == "np"
+
+        if isinstance(func.value.value, ast.Name):
+            return func.value.value.id == "np"
+
+        return False
+
+    def __handle_numpy_distribution(self, node: ast.Call):
+        loc = self.__map_to_custom_type(node.keywords[0].value)
+        scale = self.__map_to_custom_type(node.keywords[1].value)
+
+        if node.func.attr == "normal":
+            return model.NumpyDistribution(
+                node.lineno, model.Distribution.NORMAL, scale, loc
+            )
+
+        if node.func.attr == "laplace":
+            return model.NumpyDistribution(
+                node.lineno, model.Distribution.LAPLACE, scale, loc
+            )
+
+        raise TypeError("Unknown numpy distribution")
+        
 
     def __map_operation(self, operation):
         if operation == "sum":
@@ -274,14 +283,17 @@ class AstTransformer:
         print(operation)
         raise TypeError("Unknown operation")
 
-    def __map_numpy_operation(self, function_name):
-        if function_name == "array":
-            return model.NumpyOperation.array
+    def __map_numpy_operation(self, operation):
+        if operation == "array":
+            return model.NumpyOperation.ARRAY
 
-        if function_name == "exp":
-            return model.NumpyOperation.exp
+        if operation == "exp":
+            return model.NumpyOperation.EXP
 
-        if function_name == "dot":
-            return model.NumpyOperation.dot
+        if operation == "dot":
+            return model.NumpyOperation.DOT
+
+        if operation == "random":
+            return model.NumpyOperation.random
 
         raise TypeError("Unknown numpy function")

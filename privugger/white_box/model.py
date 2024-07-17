@@ -208,34 +208,36 @@ class FunctionDef(CustomNode):
 
 
 class NumpyOperation(Enum):
-    array = 1
-    exp = 2
-    dot = 3
+    ARRAY = 1
+    EXP = 2
+    DOT = 3
 
+class Distribution(Enum):
+    NORMAL = "Normal"
+    LAPLACE = "Laplace"
 
 class Numpy(CustomNode):
-    def __init__(self, line_number):
-        CustomNode.__init__(self, "numpy", line_number)
+    def __init__(self, line_number, name):
+        CustomNode.__init__(self, f"Numpy {name}", line_number)
 
 
 class NumpyFunction(Numpy):
     operation: NumpyOperation = None
+    arguments: List[CustomNode] = []
 
-    def __init__(self, line_number, operation):
-        Numpy.__init__(self, line_number)
+    def __init__(self, line_number, operation: NumpyOperation, arguments):
+        Numpy.__init__(self, line_number, operation.value, arguments)
         self.operation = operation
+        self.arguments = arguments
 
 
-class Distribution(Numpy):
+class NumpyDistribution(Numpy):
+    distribution: Distribution
     scale = None
     loc = None
 
-    def __init__(self, name, line_number, scale, loc):
-        Numpy.__init__(self, name, line_number)
+    def __init__(self, line_number, distribution: Distribution, scale, loc):
+        Numpy.__init__(self, line_number, distribution.value)
+        self.distribution = distribution
         self.scale = scale
         self.loc = loc
-
-
-class Laplace(Distribution):
-    def __init__(self, line_number, loc, scale):
-        Distribution.__init__(self, "Laplace", line_number, scale, loc)
