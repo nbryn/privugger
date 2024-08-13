@@ -1,3 +1,4 @@
+import privugger.white_box.numpy.numpy_model as numpy_model
 import privugger.white_box.model as model
 from collections.abc import Sized
 import pymc3.math as pm_math
@@ -101,29 +102,29 @@ class PyMCModelBuilder:
             self.program_functions[node.name] = (node.body, node.arguments)
             return
 
-        if isinstance(node, model.Numpy):
+        if isinstance(node, numpy_model.Numpy):
             # TODO: Extract to handle numpy
-            if isinstance(node, model.NumpyFunction):
+            if isinstance(node, numpy_model.Function):
                 mapped_arguments = list(map(self.__map_to_pycm_var, node.arguments))
-                if node.operation == model.NumpyOperation.ARRAY:
+                if node.operation == numpy_model.Operation.ARRAY:
                     return mapped_arguments[0]
 
-                if node.operation == model.NumpyOperation.EXP:
+                if node.operation == numpy_model.Operation.EXP:
                     return pm_math.exp(mapped_arguments[0])
 
-                if node.operation == model.NumpyOperation.DOT:
+                if node.operation == numpy_model.Operation.DOT:
                     return pm_math.dot(mapped_arguments[0][0], mapped_arguments[1][0])
 
                 print(type(node))
                 raise TypeError("Unknown numpy operation")
 
-            if isinstance(node, model.NumpyDistribution):
+            if isinstance(node, numpy_model.Distribution):
                 loc = self.__map_to_pycm_var(node.loc)
                 scale = self.__map_to_pycm_var(node.scale)
-                if node.distribution == model.Distribution.NORMAL:
+                if node.distribution == numpy_model.DistributionType.NORMAL:
                     return pm.Normal(node.name_with_line_number, loc, scale)
 
-                if node.distribution == model.Distribution.LAPLACE:
+                if node.distribution == numpy_model.DistributionType.LAPLACE:
                     return pm.Laplace(node.name_with_line_number, loc, scale)
 
                 print(type(node))

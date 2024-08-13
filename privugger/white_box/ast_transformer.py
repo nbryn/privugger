@@ -1,10 +1,14 @@
+import transformers
 import privugger.white_box.model as model
 from typing import List
 import ast
 
 
 class AstTransformer:
+    numpy_transformer: transformers.NumpyTransformer
+    
     def to_custom_model(self, tree, function_def):
+        self.numpy_transformer = transformers.NumpyTransformer(self)
         function_params = list(map(lambda x: x.arg, function_def.args.args))
         custom_nodes = self.__collect_and_sort_by_line_number(
             self.__collect_top_level_nodes(tree)
@@ -21,7 +25,7 @@ class AstTransformer:
     def __collect_and_sort_by_line_number(self, nodes: List[ast.AST]):
         return list(
             sorted(
-                map(self.__map_to_custom_type, nodes),
+                map(self.map_to_custom_type, nodes),
                 key=lambda node: node.line_number,
             )
         )
@@ -40,7 +44,7 @@ class AstTransformer:
 
         return sorted(nodes, key=lambda node: node.lineno)
 
-    def __map_to_custom_type(self, node: ast.AST):
+    def map_to_custom_type(self, node: ast.AST):
         if not node:
             return None
 
@@ -51,7 +55,7 @@ class AstTransformer:
             # TODO: Move to 'handle_if' method
             # Note 'node.orelse' is not handled here but as a separate node
             body_custom_nodes = self.__collect_and_sort_by_line_number(node.body)
-            condition = self.__map_to_custom_type(node.test)
+            condition = self.map_to_custom_type(node.test)
 
             return model.If(node.lineno, condition, body_custom_nodes)
 
@@ -71,7 +75,7 @@ class AstTransformer:
 
         if isinstance(node, ast.Index):
             # TODO: Temporary - Ensure this is handled properly
-            return self.__map_to_custom_type(node.value)
+            return self.map_to_custom_type(node.value)
 
         if isinstance(node, ast.Subscript):
             return self.__handle_subscript(node)
@@ -81,7 +85,7 @@ class AstTransformer:
 
         if isinstance(node, ast.UnaryOp):
             operation = self.__map_operation(node.op)
-            operand = self.__map_to_custom_type(node.operand)
+            operand = self.map_to_custom_type(node.operand)
 
             return model.UnaryOp(node.lineno, operand, operation)
 
@@ -96,7 +100,7 @@ class AstTransformer:
 
         if isinstance(node, ast.Attribute):
 
-            operand = self.__map_to_custom_type(node.value)
+            operand = self.map_to_custom_type(node.value)
             return model.Attribute(
                 node.lineno, operand, self.__map_attribute(node.attr)
             )
@@ -107,32 +111,32 @@ class AstTransformer:
             return model.FunctionDef(node.name, node.lineno, args, body)
 
         if isinstance(node, ast.Return):
-            value = self.__map_to_custom_type(node.value)
+            value = self.map_to_custom_type(node.value)
             return model.Return(node.lineno, value)
 
         print(ast.dump(node))
         raise TypeError("ast type not supported")
 
     def __handle_call(self, node: ast.Call):
-        if self.__is_numpy(node.func):
-            return self.__handle_numpy(node)
+        if self.numpy_transformer.is_numpy(node.func):
+            return self.numpy_transformer.transform(node)
 
         # TODO: Can operand both be a function and an object?
-        operand = self.__map_to_custom_type(node.func)
-        mapped_arguments = list(map(self.__map_to_custom_type, node.args))
+        operand = self.map_to_custom_type(node.func)
+        mapped_arguments = list(map(self.map_to_custom_type, node.args))
 
         return model.Call(node.lineno, operand, mapped_arguments)
 
     def __handle_compare(self, node: ast.Compare):
-        left = self.__map_to_custom_type(node.left)
+        left = self.map_to_custom_type(node.left)
         # Assumes max two comparators
         left_operation = self.__map_operation(node.ops[0])
-        middle_or_right = self.__map_to_custom_type(node.comparators[0])
+        middle_or_right = self.map_to_custom_type(node.comparators[0])
         if len(node.comparators) < 2:
             return model.Compare(node.lineno, left, middle_or_right, left_operation)
 
         right_operation = self.__map_operation(node.ops[1])
-        right = self.__map_to_custom_type(node.comparators[1])
+        right = self.map_to_custom_type(node.comparators[1])
 
         return model.Compare2(
             node.lineno, left, left_operation, middle_or_right, right, right_operation
@@ -147,16 +151,16 @@ class AstTransformer:
             )
             return model.Index(node.lineno, node.value.id, index)
 
-        lower = self.__map_to_custom_type(node.slice.lower)
-        upper = self.__map_to_custom_type(node.slice.upper)
+        lower = self.map_to_custom_type(node.slice.lower)
+        upper = self.map_to_custom_type(node.slice.upper)
         dependency_name = node.value.id
 
         return model.Subscript(node.lineno, dependency_name, lower, upper)
 
     def __handle_binop(self, node: ast.BinOp):
         operation = self.__map_operation(node.op)
-        left = self.__map_to_custom_type(node.left)
-        right = self.__map_to_custom_type(node.right)
+        left = self.map_to_custom_type(node.left)
+        right = self.map_to_custom_type(node.right)
 
         return model.BinOp(node.lineno, left, right, operation)
 
@@ -168,16 +172,16 @@ class AstTransformer:
             temp_node = temp_node.value
 
         if isinstance(node.targets[0], ast.Subscript):
-            index = self.__map_to_custom_type(node.targets[0].slice)
-            value = self.__map_to_custom_type(node.value)
+            index = self.map_to_custom_type(node.targets[0].slice)
+            value = self.map_to_custom_type(node.value)
 
             return model.AssignIndex(temp_node.id, node.lineno, value, index)
 
-        value = self.__map_to_custom_type(node.value)
+        value = self.map_to_custom_type(node.value)
         return model.Assign(temp_node.id, node.lineno, value)
 
     def __handle_list(self, node: ast.List):
-        values = list(map(self.__map_to_custom_type, node.elts))
+        values = list(map(self.map_to_custom_type, node.elts))
         return model.ListNode(node.lineno, values)
 
     def __handle_for(self, node: ast.For):
@@ -189,12 +193,12 @@ class AstTransformer:
         # We only have stop like 'range(stop)'
         if len(node.iter.args) == 1:
             start = model.Constant(node.lineno, 0)
-            stop = self.__map_to_custom_type(node.iter.args[0])
+            stop = self.map_to_custom_type(node.iter.args[0])
             return model.Loop(node.lineno, start, stop, body)
 
         # We have both start and stop like 'range(start, stop)'
-        start = self.__map_to_custom_type(node.iter.args[0])
-        stop = self.__map_to_custom_type(node.iter.args[1])
+        start = self.map_to_custom_type(node.iter.args[0])
+        stop = self.map_to_custom_type(node.iter.args[1])
 
         return model.Loop(node.lineno, start, stop, body)
 
@@ -208,48 +212,7 @@ class AstTransformer:
         # Non 'common' attribute: Return the name of the attribute
         return attribute_name
     
-    # TODO: Extract all numpy functionality to class?
-    # Consider if anything else can be extracted
-    def __handle_numpy(self, node: ast.Call):
-        def is_distribution(value):
-            return any(
-                value == distribution.value.lower() for distribution in model.Distribution
-            )
-        
-        if is_distribution(node.func.attr):
-            return self.__handle_numpy_distribution(node)
-
-        np_operation = self.__map_numpy_operation(node.attr)
-        mapped_arguments = list(map(self.__map_to_custom_type, node.args))
-        return model.NumpyFunction(node.lineno, np_operation, mapped_arguments)
-    
-    def __is_numpy(self, func):
-        if isinstance(func.value, ast.Name):
-            return func.value.id == "np"
-
-        if isinstance(func.value.value, ast.Name):
-            return func.value.value.id == "np"
-
-        return False
-
-    def __handle_numpy_distribution(self, node: ast.Call):
-        loc = self.__map_to_custom_type(node.keywords[0].value)
-        scale = self.__map_to_custom_type(node.keywords[1].value)
-
-        if node.func.attr == "normal":
-            return model.NumpyDistribution(
-                node.lineno, model.Distribution.NORMAL, scale, loc
-            )
-
-        if node.func.attr == "laplace":
-            return model.NumpyDistribution(
-                node.lineno, model.Distribution.LAPLACE, scale, loc
-            )
-
-        raise TypeError("Unknown numpy distribution")
-        
-
-    def __map_operation(self, operation):
+    def map_operation(self, operation):
         if operation == "sum":
             return model.Operation.SUM
 
@@ -282,18 +245,3 @@ class AstTransformer:
 
         print(operation)
         raise TypeError("Unknown operation")
-
-    def __map_numpy_operation(self, operation):
-        if operation == "array":
-            return model.NumpyOperation.ARRAY
-
-        if operation == "exp":
-            return model.NumpyOperation.EXP
-
-        if operation == "dot":
-            return model.NumpyOperation.DOT
-
-        if operation == "random":
-            return model.NumpyOperation.random
-
-        raise TypeError("Unknown numpy function")
