@@ -1,15 +1,12 @@
-from .. import base_transformer
-from .binop_model import *
+from .. import AstTransformer
+from .binop_model import BinOp
+import ast
 
-class BinOpTransformer(base_transformer.Transformer):
-    def __init__(self, ast_transformer):
-        base_transformer.Transformer.__init__(self, ast_transformer)
-    
-    def transform(self, node):
-        operation = self.ast_transformer.map_operation(node.op)
-        right = self.ast_transformer.map_to_custom_type(node.right)
-        left = self.ast_transformer.map_to_custom_type(node.left)
 
-        return model.BinOp(node.lineno, left, right, operation) 
-    
-    
+class BinOpTransformer(AstTransformer):
+    def to_custom_model(self, node: ast.BinOp):
+        operation = self.map_operation(node.op)
+        right = self.map_to_custom_type(node.right)
+        left = self.map_to_custom_type(node.left)
+
+        return BinOp(node.lineno, left, right, operation)

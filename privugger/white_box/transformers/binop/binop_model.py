@@ -1,12 +1,13 @@
-import privugger.white_box.model as model
+from ..operation.operation_model import Operation
+from .. import CustomNode
 
-class BinOp(model.CustomNode):
-    operation: model.Operation = None
-    right: model.CustomNode = None
-    left: model.CustomNode = None
+class BinOp(CustomNode):
+    operation: Operation = None
+    right: CustomNode = None
+    left: CustomNode = None
 
     def __init__(self, line_number, left, right, operation):
-        model.CustomNode.__init__(self, "BinOp", line_number)
+        super().__init__("BinOp", line_number)
         self.operation = operation
         self.right = right
         self.left = left
