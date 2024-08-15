@@ -1,5 +1,8 @@
+from ...pymc_model_builder import PyMCModelBuilder
 from .. import AstTransformer
+import pymc3.math as pm_math
 from .numpy_model import *
+import pymc3 as pm
 import ast
 
 
@@ -17,7 +20,7 @@ class NumpyTransformer(AstTransformer):
         if self.__is_distribution(node.func.attr):
             return self.__handle_numpy_distribution(node)
 
-        np_operation = self.__map_numpy_operation(node.attr)
+        np_operation = self.__to_custom_operation(node.attr)
         mapped_arguments = list(map(self._map_to_custom_type, node.args))
         return NumpyFunction(node.lineno, np_operation, mapped_arguments)
 
@@ -38,7 +41,7 @@ class NumpyTransformer(AstTransformer):
 
         raise TypeError("Unknown numpy distribution")
 
-    def __map_numpy_operation(self, operation):
+    def __to_custom_operation(self, operation):
         if operation == "array":
             return NumpyOperation.ARRAY
 
@@ -49,3 +52,32 @@ class NumpyTransformer(AstTransformer):
             return NumpyOperation.DOT
 
         raise TypeError("Unknown numpy function")
+    
+    def to_pymc(self, node: Numpy, pymc_model_builder: PyMCModelBuilder):
+        if isinstance(node, NumpyFunction):
+                mapped_arguments = list(map(pymc_model_builder.to_pymc, node.arguments))
+                if node.operation == NumpyOperation.ARRAY:
+                    return mapped_arguments[0]
+
+                if node.operation == NumpyOperation.EXP:
+                    return pm_math.exp(mapped_arguments[0])
+
+                if node.operation == NumpyOperation.DOT:
+                    return pm_math.dot(mapped_arguments[0][0], mapped_arguments[1][0])
+
+                print(type(node))
+                raise TypeError("Unknown numpy operation")
+
+        if isinstance(node, NumpyDistribution):
+            loc = pymc_model_builder.to_pymc(node.loc)
+            scale = pymc_model_builder.to_pymc(node.scale)
+            if node.distribution == NumpyDistributionType.NORMAL:
+                return pm.Normal(node.name_with_line_number, loc, scale)
+
+            if node.distribution == NumpyDistributionType.LAPLACE:
+                return pm.Laplace(node.name_with_line_number, loc, scale)
+
+            print(type(node))
+            raise TypeError("Unknown numpy distribution")
+        
+    

@@ -1,4 +1,4 @@
-from .ast_transformer import AstTransformer
+from ..ast_transformer import AstTransformer
 from .custom_node import CustomNode
 
 from .numpy.numpy_model import (

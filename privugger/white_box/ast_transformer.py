@@ -1,11 +1,13 @@
-from .operation.operation_transformer import OperationTransformer
+from .transformers.operation.operation_transformer import OperationTransformer
+from .transformer_factory import TransformerFactory
 from abc import abstractmethod
 from typing import List
-import importlib
 import ast
 
 
 class AstTransformer:
+    transformer_factory = TransformerFactory()
+    
     @abstractmethod
     def to_custom_model(self):
         pass
@@ -47,36 +49,8 @@ class AstTransformer:
         if isinstance(node, ast.Index):
             return self._map_to_custom_type(node.value)
 
-        # Use of reflection to instantiate the correct transformer
-        # For this to work the transformer must have the same name as the AST node
-        # E.g. ast.Call should have a corresponding 'CallTransformer' located in folder named 'call' with a class named 'call_transformer'
-        module_path = self.__get_module_path(node)
-        try:
-            transformer_module = importlib.import_module(module_path)
-            transformer_class_name = self.__get_transformer_name(node)
-            transformer_class = getattr(transformer_module, transformer_class_name)
-            
-            return transformer_class().to_custom_model(node)
-
-        except (ModuleNotFoundError, AttributeError):
-            print(ast.dump(node))
-            raise RuntimeError("Error during transformer instantiation")
-
-    def __get_module_path(self, node):
-        node_name = node.__class__.__name__.lower()
-        base_path = f"privugger.white_box.transformers.{node_name}"
-
-        if node_name == "return" or node_name == "if":
-            return base_path + f"_transformer.{node_name}_transformer"
-
-        return base_path + f".{node_name}_transformer"
-
-    def __get_transformer_name(self, node):
-        node_class_name = node.__class__.__name__.lower()
-        if node_class_name == "binop":
-            return "BinOpTransformer"
-
-        return f"{node_class_name.capitalize()}Transformer"
+        transformer = self.transformer_factory.create(node)
+        return transformer.to_custom_model(node)
 
     def _map_operation(self, operation):
         return OperationTransformer().to_custom_model(operation)

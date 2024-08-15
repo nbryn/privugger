@@ -1,4 +1,4 @@
-from .. import ast_transformer
+from ... import ast_transformer
 from .assign_model import *
 import ast
 

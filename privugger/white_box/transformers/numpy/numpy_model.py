@@ -1,3 +1,5 @@
+from ...pymc_model_builder import PyMCModelBuilder
+from .numpy_transformer import NumpyTransformer
 from .. import CustomNode
 from typing import List
 from enum import Enum
@@ -16,15 +18,17 @@ class NumpyDistributionType(Enum):
 
 class Numpy(CustomNode):
     def __init__(self, line_number, name):
-        CustomNode.__init__(self, f"Numpy {name}", line_number)
+        super().__init__(f"Numpy {name}", line_number)
 
+    def to_pymc(self, pymc_model_builder: PyMCModelBuilder):
+        return NumpyTransformer().to_pymc(self, pymc_model_builder)
 
 class NumpyFunction(Numpy):
     operation: NumpyOperation = None
     arguments: List[CustomNode] = []
 
     def __init__(self, line_number, operation: NumpyOperation, arguments):
-        Numpy.__init__(self, line_number, operation.value, arguments)
+        super().__init__(line_number, operation.value, arguments)
         self.operation = operation
         self.arguments = arguments
 
@@ -35,7 +39,7 @@ class NumpyDistribution(Numpy):
     loc = None
 
     def __init__(self, line_number, distribution: NumpyDistributionType, scale, loc):
-        Numpy.__init__(self, line_number, distribution.value)
+        super().__init__(line_number, distribution.value)
         self.distribution = distribution
         self.scale = scale
         self.loc = loc

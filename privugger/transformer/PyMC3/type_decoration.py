@@ -5,7 +5,7 @@ import os
 import copy
 import privugger.transformer.PyMC3.annotation_types as at
 from privugger.transformer.PyMC3.theano_types import TheanoToken
-from privugger.white_box.transformers.ast_transformer import AstTransformer
+from privugger.white_box.ast_transformer import AstTransformer
 
 class FunctionTypeDecorator(ast.NodeTransformer):
     file_name = "temp.py"

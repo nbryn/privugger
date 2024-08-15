@@ -36,11 +36,9 @@ class PyMCModelBuilder:
             )
 
         for node in self.custom_nodes:
-            self.__map_to_pycm_var(node)
+            self.to_pymc(node)
 
-    def __map_to_pycm_var(
-        self, node: CustomNode, condition=None, in_function=False
-    ):
+    def to_pymc(self, node: CustomNode, condition=None, in_function=False):
         # print("MAP TO")
         # print(type(node))
         if isinstance(node, Subscript):
@@ -56,7 +54,7 @@ class PyMCModelBuilder:
             return self.__handle_index(node)
 
         if isinstance(node, UnaryOp):
-            operand = self.__map_to_pycm_var(node.operand, condition, in_function)
+            operand = self.to_pymc(node.operand, condition, in_function)
             if isinstance(operand, tuple):
                 operand = operand[0]
 
@@ -69,7 +67,7 @@ class PyMCModelBuilder:
             return self.program_variables[node.reference_to]
 
         if isinstance(node, Return):
-            value = self.__map_to_pycm_var(node.value, condition, in_function)
+            value = self.to_pymc(node.value, condition, in_function)
             if isinstance(value, tuple):
                 value = value[0]
 
@@ -95,45 +93,20 @@ class PyMCModelBuilder:
             return self.__handle_if(node)
 
         if isinstance(node, ListNode):
-            return list(map(self.__map_to_pycm_var, node.values))
+            return list(map(self.to_pymc, node.values))
 
         if isinstance(node, FunctionDef):
             self.program_functions[node.name] = (node.body, node.arguments)
             return
 
-        if isinstance(node, Numpy):
-            # TODO: Extract to handle numpy
-            if isinstance(node, NumpyFunction):
-                mapped_arguments = list(map(self.__map_to_pycm_var, node.arguments))
-                if node.operation == NumpyOperation.ARRAY:
-                    return mapped_arguments[0]
-
-                if node.operation == NumpyOperation.EXP:
-                    return pm_math.exp(mapped_arguments[0])
-
-                if node.operation == NumpyOperation.DOT:
-                    return pm_math.dot(mapped_arguments[0][0], mapped_arguments[1][0])
-
-                print(type(node))
-                raise TypeError("Unknown numpy operation")
-
-            if isinstance(node, NumpyDistribution):
-                loc = self.__map_to_pycm_var(node.loc)
-                scale = self.__map_to_pycm_var(node.scale)
-                if node.distribution == NumpyDistributionType.NORMAL:
-                    return pm.Normal(node.name_with_line_number, loc, scale)
-
-                if node.distribution == NumpyDistributionType.LAPLACE:
-                    return pm.Laplace(node.name_with_line_number, loc, scale)
-
-                print(type(node))
-                raise TypeError("Unknown numpy distribution")
+        if hasattr(node, "to_pymc"):
+            node.to_pymc(self)
 
         print(type(node))
         raise TypeError("Unsupported custom ast type")
 
     def __handle_assign(self, node: Assign, condition=None, in_function=False):
-        variable = self.__map_to_pycm_var(node.value, condition)
+        variable = self.to_pymc(node.value, condition)
         size = len(variable) if isinstance(variable, Sized) else None
         if isinstance(variable, tuple):
             variable = variable[0]
@@ -150,7 +123,7 @@ class PyMCModelBuilder:
         pymc_variable_name = node.name_with_line_number
         tensor_var = tt.as_tensor_variable(variable)
         if isinstance(node, AssignIndex):
-            (index, _) = self.__map_to_pycm_var(node.index)
+            (index, _) = self.to_pymc(node.index)
             (operand, _) = self.program_variables[node.name]
             tensor_var = tt.set_subtensor(operand[index], tensor_var)
 
@@ -173,7 +146,7 @@ class PyMCModelBuilder:
             # Variable declared inside if
             else:
                 (default_value, size) = self.__get_default_value(node.value)
-                value = self.__map_to_pycm_var(node.value)
+                value = self.to_pymc(node.value)
                 tensor_var = pm_math.switch(condition, value, default_value)
 
         self.program_variables[node.name] = (tensor_var, size)
@@ -185,14 +158,14 @@ class PyMCModelBuilder:
 
     def __handle_subscript(self, node: Subscript):
         (operand, size) = self.program_variables[node.operand]
-        lower = self.__map_to_pycm_var(node.lower) if node.lower else 0
-        upper = self.__map_to_pycm_var(node.upper) if node.upper else size
+        lower = self.to_pymc(node.lower) if node.lower else 0
+        upper = self.to_pymc(node.upper) if node.upper else size
 
         return operand[lower:upper]
 
     def __handle_compare(self, node):
-        left = self.__map_to_pycm_var(node.left)
-        right = self.__map_to_pycm_var(node.right)
+        left = self.to_pymc(node.left)
+        right = self.to_pymc(node.right)
 
         if isinstance(left, tuple):
             left = left[0]
@@ -200,7 +173,7 @@ class PyMCModelBuilder:
         if isinstance(node, Compare):
             return self.__to_pymc_operation(node.operation, left, right)
 
-        middle = self.__map_to_pycm_var(node.middle)
+        middle = self.to_pymc(node.middle)
         left_compare = self.__to_pymc_operation(node.left_operation, left, middle)
         right_compare = self.__to_pymc_operation(node.right_operation, middle, right)
 
@@ -215,8 +188,8 @@ class PyMCModelBuilder:
         return operand[node.index]
 
     def __handle_binop(self, node: BinOp):
-        left = self.__map_to_pycm_var(node.left)
-        right = self.__map_to_pycm_var(node.right)
+        left = self.to_pymc(node.left)
+        right = self.to_pymc(node.right)
         if isinstance(left, tuple):
             left = left[0]
 
@@ -226,7 +199,7 @@ class PyMCModelBuilder:
         return self.__to_pymc_operation(node.operation, left, right)
 
     def __handle_attribute(self, node: Attribute):
-        (operand, size) = self.__map_to_pycm_var(node.operand)
+        (operand, size) = self.to_pymc(node.operand)
         if node.attribute == Operation.SIZE:
             return size
 
@@ -235,9 +208,9 @@ class PyMCModelBuilder:
 
     def __handle_call(self, node: Call):
         if isinstance(node.operand, Attribute):
-            return self.__map_to_pycm_var(node.operand)
+            return self.to_pymc(node.operand)
 
-        mapped_arguments = list(map(self.__map_to_pycm_var, node.arguments))
+        mapped_arguments = list(map(self.to_pymc, node.arguments))
 
         if isinstance(node.operand, Reference):
             # TODO: Function call - Extract to handle_function_call
@@ -256,9 +229,9 @@ class PyMCModelBuilder:
                 # Returns inside ifs in functions should be handled in __handle_if
                 for child_node in function_body:
                     if isinstance(child_node, Return):
-                        return self.__map_to_pycm_var(child_node, None, True)
+                        return self.to_pymc(child_node, None, True)
 
-                    self.__map_to_pycm_var(child_node, None, True)
+                    self.to_pymc(child_node, None, True)
 
             # TODO: Will it always be a reference to a function?
             print(node.operand.reference_to)
@@ -268,9 +241,9 @@ class PyMCModelBuilder:
         raise TypeError("Unsupported call operand")
 
     def __handle_if(self, node: If):
-        condition = self.__map_to_pycm_var(node.condition)
+        condition = self.to_pymc(node.condition)
         for child_node in node.body:
-            self.__map_to_pycm_var(child_node, condition)
+            self.to_pymc(child_node, condition)
 
     # Default values for variables declared inside if
     # Used when the condition is not true
@@ -297,8 +270,8 @@ class PyMCModelBuilder:
 
         if isinstance(node, Subscript):
             (operand, _) = self.program_variables[node.operand]
-            lower = self.__map_to_pycm_var(node.lower) if node.lower else 0
-            upper = self.__map_to_pycm_var(node.upper) if node.upper else len(operand)
+            lower = self.to_pymc(node.lower) if node.lower else 0
+            upper = self.to_pymc(node.upper) if node.upper else len(operand)
 
             # TODO: Check if continuous or discrete?
             return (
@@ -311,13 +284,13 @@ class PyMCModelBuilder:
         return (tt.as_tensor_variable(0), None)
 
     def __handle_loop(self, node: Loop):
-        start = self.__map_to_pycm_var(node.start)
-        stop = self.__map_to_pycm_var(node.stop)
+        start = self.to_pymc(node.start)
+        stop = self.to_pymc(node.stop)
 
         for i in range(start, stop):
             self.program_variables["i"] = (i, None)
             for child_node in node.body:
-                self.__map_to_pycm_var(child_node)
+                self.to_pymc(child_node)
 
         # Below is kept for future reference.
         # TODO: Verify that this works as expected
