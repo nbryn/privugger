@@ -1,4 +1,4 @@
-#from privugger.white_box.transformers import *
+from .operation.operation_transformer import OperationTransformer
 from abc import abstractmethod
 from typing import List
 import importlib
@@ -12,16 +12,16 @@ class AstTransformer:
 
     def transform(self, tree, function_def):
         function_params = list(map(lambda x: x.arg, function_def.args.args))
-        custom_nodes = self.collect_and_sort_by_line_number(
+        custom_nodes = self._collect_and_sort_by_line_number(
             self.__collect_top_level_nodes(tree)
         )
 
         return (function_params, custom_nodes)
 
-    def collect_and_sort_by_line_number(self, nodes: List[ast.AST]):
+    def _collect_and_sort_by_line_number(self, nodes: List[ast.AST]):
         return list(
             sorted(
-                map(self.map_to_custom_type, nodes),
+                map(self._map_to_custom_type, nodes),
                 key=lambda node: node.line_number,
             )
         )
@@ -40,93 +40,43 @@ class AstTransformer:
 
         return sorted(nodes, key=lambda node: node.lineno)
 
-    def map_to_custom_type(self, node: ast.AST):
+    def _map_to_custom_type(self, node: ast.AST):
         if not node:
             return None
-        
-        # Use reflection to instantiate the correct transformer
-        # For this to work the transformer must have the same name ast the AST node
-        # E.g. ast.Call must have a corresponding CallTransformer
-        # Get the class name of the AST node (e.g., If, For, Call)
-        node_class_name = node.__class__.__name__
-
-        # Construct the transformer class name (e.g., IfTransformer, ForTransformer)
-        transformer_class_name = f"{node_class_name}Transformer"
-
-        # Construct the module path based on the node class name (e.g., if.if_transformer)
-        module_path = f"{node_class_name.lower()}.{node_class_name.lower()}_transformer"
-        print(module_path)
-
-        try:
-        # Import the module dynamically from the corresponding folder
-            transformer_module = importlib.import_module(module_path)
-            print("GOT HERE")
-            
-            # Get the transformer class from the imported module
-            transformer_class = getattr(transformer_module, transformer_class_name)
-            
-            transformer = transformer_class()
-            return transformer.to_custom_model(node)
-
-        except (ModuleNotFoundError, AttributeError):
-            if isinstance(node, ast.Index):
-            # Handle special case for ast.Index
-                return self.map_to_custom_type(node.value)
-        
-        print(ast.dump(node))
-        raise TypeError(f"AST type {node_class_name} not supported")
-
-        # print("NEW")
-        # print(ast.dump(node))
-
-        if isinstance(node, ast.If):
-            return IfTransformer().to_custom_model(node)
-
-        if isinstance(node, ast.For):
-            return ForTransformer().to_custom_model(node)
-
-        if isinstance(node, ast.Call):
-            return CallTransformer().to_custom_model(node)
-
-        if isinstance(node, ast.Constant):
-            return ConstantTransformer().to_custom_model(node)
-
-        if isinstance(node, ast.Compare):
-            return CompareTransformer().to_custom_model(node)
 
         if isinstance(node, ast.Index):
-            # TODO: Temporary - Ensure this is handled properly
-            return self.map_to_custom_type(node.value)
+            return self._map_to_custom_type(node.value)
 
-        if isinstance(node, ast.Subscript):
-            return SubscriptTransformer().to_custom_model(node)
+        # Use of reflection to instantiate the correct transformer
+        # For this to work the transformer must have the same name as the AST node
+        # E.g. ast.Call should have a corresponding 'CallTransformer' located in folder named 'call' with a class named 'call_transformer'
+        module_path = self.__get_module_path(node)
+        try:
+            transformer_module = importlib.import_module(module_path)
+            transformer_class_name = self.__get_transformer_name(node)
+            transformer_class = getattr(transformer_module, transformer_class_name)
+            
+            return transformer_class().to_custom_model(node)
 
-        if isinstance(node, ast.BinOp):
-            return BinOpTransformer().to_custom_model(node)
+        except (ModuleNotFoundError, AttributeError):
+            print(ast.dump(node))
+            raise RuntimeError("Error during transformer instantiation")
 
-        if isinstance(node, ast.UnaryOp):
-            return UnaryOpTransformer().to_custom_model(node)
+    def __get_module_path(self, node):
+        node_name = node.__class__.__name__.lower()
+        base_path = f"privugger.white_box.transformers.{node_name}"
 
-        if isinstance(node, ast.Assign):
-            return AssignTransformer().to_custom_model(node)
+        if node_name == "return" or node_name == "if":
+            return base_path + f"_transformer.{node_name}_transformer"
 
-        if isinstance(node, ast.List):
-            return ListTransformer().to_custom_model(node)
+        return base_path + f".{node_name}_transformer"
 
-        if isinstance(node, ast.Name):
-            return NameTransformer().to_custom_model(node)
+    def __get_transformer_name(self, node):
+        node_class_name = node.__class__.__name__.lower()
+        if node_class_name == "binop":
+            return "BinOpTransformer"
 
-        if isinstance(node, ast.Attribute):
-            return AttributeTransformer().to_custom_model(node)
+        return f"{node_class_name.capitalize()}Transformer"
 
-        if isinstance(node, ast.FunctionDef):
-            return FunctionTransformer().to_custom_model(node)
-
-        if isinstance(node, ast.Return):
-            return ReturnTransformer().to_custom_model(node)
-
-        print(ast.dump(node))
-        raise TypeError("ast type not supported")
-
-    def map_operation(self, operation):
+    def _map_operation(self, operation):
         return OperationTransformer().to_custom_model(operation)

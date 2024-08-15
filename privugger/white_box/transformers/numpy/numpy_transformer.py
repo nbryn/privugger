@@ -18,7 +18,7 @@ class NumpyTransformer(AstTransformer):
             return self.__handle_numpy_distribution(node)
 
         np_operation = self.__map_numpy_operation(node.attr)
-        mapped_arguments = list(map(self.map_to_custom_type, node.args))
+        mapped_arguments = list(map(self._map_to_custom_type, node.args))
         return NumpyFunction(node.lineno, np_operation, mapped_arguments)
 
     def __is_distribution(self, value):
@@ -27,8 +27,8 @@ class NumpyTransformer(AstTransformer):
         )
 
     def __handle_numpy_distribution(self, node: ast.Call):
-        loc = self.map_to_custom_type(node.keywords[0].value)
-        scale = self.map_to_custom_type(node.keywords[1].value)
+        loc = self._map_to_custom_type(node.keywords[0].value)
+        scale = self._map_to_custom_type(node.keywords[1].value)
 
         if node.func.attr == "normal":
             return NumpyDistribution(node.lineno, NumpyDistributionType.NORMAL, scale, loc)

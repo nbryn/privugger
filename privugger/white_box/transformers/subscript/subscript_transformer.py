@@ -14,8 +14,8 @@ class SubscriptTransformer(AstTransformer):
             )
             return Index(node.lineno, node.value.id, index)
 
-        lower = self.map_to_custom_type(node.slice.lower)
-        upper = self.map_to_custom_type(node.slice.upper)
+        lower = self._map_to_custom_type(node.slice.lower)
+        upper = self._map_to_custom_type(node.slice.upper)
         dependency_name = node.value.id
 
         return Subscript(node.lineno, dependency_name, lower, upper)

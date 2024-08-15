@@ -10,7 +10,7 @@ class CallTransformer(AstTransformer):
             return numpy_transformer.to_custom_model(node)
 
         # TODO: Can operand both be a function and an object?
-        operand = self.map_to_custom_type(node.func)
-        mapped_arguments = list(map(self.map_to_custom_type, node.args))
+        operand = self._map_to_custom_type(node.func)
+        mapped_arguments = list(map(self._map_to_custom_type, node.args))
 
         return Call(node.lineno, operand, mapped_arguments)

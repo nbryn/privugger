@@ -227,7 +227,7 @@ class PyMCModelBuilder:
 
     def __handle_attribute(self, node: Attribute):
         (operand, size) = self.__map_to_pycm_var(node.operand)
-        if node.attribute == model.Operation.SIZE:
+        if node.attribute == Operation.SIZE:
             return size
 
         # TODO: Handle attributes that are not 'sum' and 'size'
