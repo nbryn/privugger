@@ -1,11 +1,11 @@
-from .. import CustomNode, Reference
-
+from ..name.name_model import Name
+from .. import CustomNode
 
 # Represents 'object.attribute'
 # Attribute can be a 'normal' operation (like sum) or a custom attribute
 # If its a operation it will be of type operation otherwise it will be a string
 class Attribute(CustomNode):
-    operand: Reference = None
+    operand: Name = None
     attribute = None
 
     def __init__(self, line_number, operand, attribute):

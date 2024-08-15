@@ -18,3 +18,11 @@ class AttributeTransformer(AstTransformer):
 
         # Non 'common' attribute: Return the name of the attribute
         return attribute_name
+    
+    def to_pymc(self, node: Attribute, pymc_model_builder, condition, in_function):
+        (operand, size) = pymc_model_builder.to_pymc(node.operand, condition, in_function)
+        if node.attribute == Operation.SIZE:
+            return size
+
+        # TODO: Handle attributes that are not 'sum' and 'size'
+        return pymc_model_builder.to_pymc_operation(node.attribute, operand)

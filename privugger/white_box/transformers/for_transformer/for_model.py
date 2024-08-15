@@ -1,7 +1,7 @@
 from .. import CustomNode
 from typing import List
 
-class Loop(CustomNode):
+class For(CustomNode):
     body: List[CustomNode] = []
     start = None
     stop = None

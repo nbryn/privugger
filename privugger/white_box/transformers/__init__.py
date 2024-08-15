@@ -16,8 +16,8 @@ from .binop.binop_model import BinOp
 from .assign.assign_transformer import AssignTransformer
 from .assign.assign_model import Assign, AssignIndex
 
-from .loop.loop_transformer import ForTransformer
-from .loop.loop_model import Loop
+from .for_transformer.for_transformer import ForTransformer
+from .for_transformer.for_model import For
 
 from .call.call_transformer import CallTransformer
 from .call.call_model import Call
@@ -38,13 +38,13 @@ from .list.list_transformer import ListTransformer
 from .list.list_model import ListNode
 
 from .name.name_transformer import NameTransformer
-from .name.name_model import Reference
+from .name.name_model import Name
 
 from .attribute.attribute_transformer import AttributeTransformer
 from .attribute.attribute_model import Attribute
 
-from .function.function_transformer import FunctionTransformer
-from .function.function_model import FunctionDef
+from .functiondef.functiondef_transformer import FunctionDefTransformer
+from .functiondef.functiondef_model import FunctionDef
 
 from .return_transformer.return_transformer import ReturnTransformer
 from .return_transformer.return_model import Return
@@ -72,7 +72,7 @@ __all__ = [
     "Assign",
     "AssignIndex",
     "ForTransformer",
-    "Loop",
+    "For",
     "CallTransformer",
     "Call",
     "ConstantTransformer",
@@ -87,10 +87,10 @@ __all__ = [
     "ListTransformer",
     "ListNode",
     "NameTransformer",
-    "Reference",
+    "Name",
     "AttributeTransformer",
     "Attribute",
-    "FunctionTransformer",
+    "FunctionDefTransformer",
     "FunctionDef",
     "ReturnTransformer",
     "Return",

@@ -1,15 +1,16 @@
 from .transformers.operation.operation_transformer import OperationTransformer
-from .transformer_factory import TransformerFactory
 from abc import abstractmethod
 from typing import List
 import ast
 
 
 class AstTransformer:
-    transformer_factory = TransformerFactory()
-    
     @abstractmethod
     def to_custom_model(self):
+        pass
+    
+    @abstractmethod
+    def to_pymc(self):
         pass
 
     def transform(self, tree, function_def):
@@ -43,13 +44,11 @@ class AstTransformer:
         return sorted(nodes, key=lambda node: node.lineno)
 
     def _map_to_custom_type(self, node: ast.AST):
+        from .transformer_factory import TransformerFactory
         if not node:
             return None
 
-        if isinstance(node, ast.Index):
-            return self._map_to_custom_type(node.value)
-
-        transformer = self.transformer_factory.create(node)
+        transformer = TransformerFactory().create_transformer(node)
         return transformer.to_custom_model(node)
 
     def _map_operation(self, operation):

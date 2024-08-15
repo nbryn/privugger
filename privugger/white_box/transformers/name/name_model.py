@@ -1,7 +1,7 @@
 from .. import CustomNode
 
 
-class Reference(CustomNode):
+class Name(CustomNode):
     reference_to = ""
 
     def __init__(self, line_number, reference_to):

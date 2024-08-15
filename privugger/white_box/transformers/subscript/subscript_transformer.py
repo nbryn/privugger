@@ -19,3 +19,11 @@ class SubscriptTransformer(AstTransformer):
         dependency_name = node.value.id
 
         return Subscript(node.lineno, dependency_name, lower, upper)
+
+    def to_pymc(self, node: Subscript, pymc_model_builder, condition, in_function):
+        (operand, size) = pymc_model_builder.program_variables[node.operand]
+        lower = pymc_model_builder.to_pymc(node.lower, condition, in_function) if node.lower else 0
+        upper = pymc_model_builder.to_pymc(node.upper, condition, in_function) if node.upper else size
+
+        return operand[lower:upper]
+        

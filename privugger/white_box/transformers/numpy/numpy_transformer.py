@@ -1,4 +1,3 @@
-from ...pymc_model_builder import PyMCModelBuilder
 from .. import AstTransformer
 import pymc3.math as pm_math
 from .numpy_model import *
@@ -26,7 +25,8 @@ class NumpyTransformer(AstTransformer):
 
     def __is_distribution(self, value):
         return any(
-            value == distribution.value.lower() for distribution in NumpyDistributionType
+            value == distribution.value.lower()
+            for distribution in NumpyDistributionType
         )
 
     def __handle_numpy_distribution(self, node: ast.Call):
@@ -34,10 +34,14 @@ class NumpyTransformer(AstTransformer):
         scale = self._map_to_custom_type(node.keywords[1].value)
 
         if node.func.attr == "normal":
-            return NumpyDistribution(node.lineno, NumpyDistributionType.NORMAL, scale, loc)
+            return NumpyDistribution(
+                node.lineno, NumpyDistributionType.NORMAL, scale, loc
+            )
 
         if node.func.attr == "laplace":
-            return NumpyDistribution(node.lineno, NumpyDistributionType.LAPLACE, scale, loc)
+            return NumpyDistribution(
+                node.lineno, NumpyDistributionType.LAPLACE, scale, loc
+            )
 
         raise TypeError("Unknown numpy distribution")
 
@@ -52,25 +56,25 @@ class NumpyTransformer(AstTransformer):
             return NumpyOperation.DOT
 
         raise TypeError("Unknown numpy function")
-    
-    def to_pymc(self, node: Numpy, pymc_model_builder: PyMCModelBuilder):
+
+    def to_pymc(self, node: Numpy, model_builder, condition, in_function):
         if isinstance(node, NumpyFunction):
-                mapped_arguments = list(map(pymc_model_builder.to_pymc, node.arguments))
-                if node.operation == NumpyOperation.ARRAY:
-                    return mapped_arguments[0]
+            mapped_arguments = list(map(model_builder.to_pymc, node.arguments))
+            if node.operation == NumpyOperation.ARRAY:
+                return mapped_arguments[0]
 
-                if node.operation == NumpyOperation.EXP:
-                    return pm_math.exp(mapped_arguments[0])
+            if node.operation == NumpyOperation.EXP:
+                return pm_math.exp(mapped_arguments[0])
 
-                if node.operation == NumpyOperation.DOT:
-                    return pm_math.dot(mapped_arguments[0][0], mapped_arguments[1][0])
+            if node.operation == NumpyOperation.DOT:
+                return pm_math.dot(mapped_arguments[0][0], mapped_arguments[1][0])
 
-                print(type(node))
-                raise TypeError("Unknown numpy operation")
+            print(type(node))
+            raise TypeError("Unknown numpy operation")
 
         if isinstance(node, NumpyDistribution):
-            loc = pymc_model_builder.to_pymc(node.loc)
-            scale = pymc_model_builder.to_pymc(node.scale)
+            loc = model_builder.to_pymc(node.loc, condition, in_function)
+            scale = model_builder.to_pymc(node.scale, condition, in_function)
             if node.distribution == NumpyDistributionType.NORMAL:
                 return pm.Normal(node.name_with_line_number, loc, scale)
 
@@ -79,5 +83,3 @@ class NumpyTransformer(AstTransformer):
 
             print(type(node))
             raise TypeError("Unknown numpy distribution")
-        
-    

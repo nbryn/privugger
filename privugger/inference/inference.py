@@ -14,7 +14,7 @@ import os
 import importlib
 import theano.tensor as tt
 import theano
-from privugger.white_box.pymc_model_builder import PyMCModelBuilder
+from privugger.white_box.pymc_model_builder import ModelBuilder
 
 # Create a global pymc3 model and list of priors
 global_model = None
@@ -248,7 +248,7 @@ def infer(prog, cores=2, chains=2, draws=500, method="pymc3", return_model=False
                 trace = None
                 with model:
                     prior = get_prior(num_specs, input_specs)
-                    model_builder = PyMCModelBuilder(custom_nodes, program_params, global_priors, prog.dataset.input_specs[0].num_elements, model)
+                    model_builder = ModelBuilder(custom_nodes, program_params, global_priors, prog.dataset.input_specs[0].num_elements, model)
                     model_builder.build()
                                                                  
                     print("SAMPLING")

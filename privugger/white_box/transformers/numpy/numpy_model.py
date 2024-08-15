@@ -1,9 +1,7 @@
-from ...pymc_model_builder import PyMCModelBuilder
-from .numpy_transformer import NumpyTransformer
 from .. import CustomNode
 from typing import List
 from enum import Enum
-
+from abc import ABC
 
 class NumpyOperation(Enum):
     ARRAY = 1
@@ -19,9 +17,6 @@ class NumpyDistributionType(Enum):
 class Numpy(CustomNode):
     def __init__(self, line_number, name):
         super().__init__(f"Numpy {name}", line_number)
-
-    def to_pymc(self, pymc_model_builder: PyMCModelBuilder):
-        return NumpyTransformer().to_pymc(self, pymc_model_builder)
 
 class NumpyFunction(Numpy):
     operation: NumpyOperation = None
