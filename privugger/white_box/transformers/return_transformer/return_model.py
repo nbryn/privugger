@@ -1,4 +1,4 @@
-from .. import CustomNode
+from ...custom_node import CustomNode
 
 class Return(CustomNode):
     value = None

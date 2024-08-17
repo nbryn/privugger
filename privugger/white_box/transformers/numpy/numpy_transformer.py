@@ -1,11 +1,11 @@
-from .. import AstTransformer
+from ...white_box_ast_transformer import WhiteBoxAstTransformer
 import pymc3.math as pm_math
 from .numpy_model import *
 import pymc3 as pm
 import ast
 
 
-class NumpyTransformer(AstTransformer):
+class NumpyTransformer(WhiteBoxAstTransformer):
     def is_numpy(self, func):
         if isinstance(func.value, ast.Name):
             return func.value.id == "np"
@@ -20,7 +20,7 @@ class NumpyTransformer(AstTransformer):
             return self.__handle_numpy_distribution(node)
 
         np_operation = self.__to_custom_operation(node.attr)
-        mapped_arguments = list(map(self._map_to_custom_type, node.args))
+        mapped_arguments = list(map(super().to_custom_model, node.args))
         return NumpyFunction(node.lineno, np_operation, mapped_arguments)
 
     def __is_distribution(self, value):
@@ -30,8 +30,8 @@ class NumpyTransformer(AstTransformer):
         )
 
     def __handle_numpy_distribution(self, node: ast.Call):
-        loc = self._map_to_custom_type(node.keywords[0].value)
-        scale = self._map_to_custom_type(node.keywords[1].value)
+        loc = super().to_custom_model(node.keywords[0].value)
+        scale = super().to_custom_model(node.keywords[1].value)
 
         if node.func.attr == "normal":
             return NumpyDistribution(
@@ -57,9 +57,9 @@ class NumpyTransformer(AstTransformer):
 
         raise TypeError("Unknown numpy function")
 
-    def to_pymc(self, node: Numpy, model_builder, condition, in_function):
+    def to_pymc(self, node: Numpy, condition, in_function):
         if isinstance(node, NumpyFunction):
-            mapped_arguments = list(map(model_builder.to_pymc, node.arguments))
+            mapped_arguments = list(map(super().to_pymc, node.arguments))
             if node.operation == NumpyOperation.ARRAY:
                 return mapped_arguments[0]
 
@@ -73,8 +73,8 @@ class NumpyTransformer(AstTransformer):
             raise TypeError("Unknown numpy operation")
 
         if isinstance(node, NumpyDistribution):
-            loc = model_builder.to_pymc(node.loc, condition, in_function)
-            scale = model_builder.to_pymc(node.scale, condition, in_function)
+            loc = super().to_pymc(node.loc, condition, in_function)
+            scale = super().to_pymc(node.scale, condition, in_function)
             if node.distribution == NumpyDistributionType.NORMAL:
                 return pm.Normal(node.name_with_line_number, loc, scale)
 

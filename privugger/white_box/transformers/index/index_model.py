@@ -1,4 +1,4 @@
-from .. import custom_node
+from ... import custom_node
 
 
 class Index(custom_node.CustomNode):

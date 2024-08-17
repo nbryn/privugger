@@ -1,4 +1,4 @@
-from .. import custom_node
+from ... import custom_node
 from typing import List
 
 class If(custom_node.CustomNode):

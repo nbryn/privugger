@@ -1,10 +1,10 @@
-
+from .custom_node import CustomNode
+from typing import Union
 import importlib
 import ast
 
-
-class TransformerFactory:
-    def create_transformer(self, node):
+class TransformerFactory():
+    def create(self, node: Union[ast.AST, CustomNode]):
         # Use of reflection to instantiate the correct transformer
         # For this to work the transformer must have the same name as the AST node
         # E.g. ast.Call should have a corresponding 'CallTransformer' located in folder named 'call' with a class named 'call_transformer'
@@ -14,7 +14,7 @@ class TransformerFactory:
             transformer_class_name = self.__get_transformer_name(node)
             transformer_class = getattr(transformer_module, transformer_class_name)
 
-            return transformer_class()
+            return transformer_class
 
         except (ModuleNotFoundError, AttributeError):
             if isinstance(node, ast.AST):
@@ -22,7 +22,7 @@ class TransformerFactory:
             
             raise RuntimeError("Error during transformer instantiation")
 
-    def __get_module_path(self, node):
+    def __get_module_path(self, node: Union[ast.AST, CustomNode]):
         node_name: str = node.__class__.__name__.lower()
         if "numpy" in node_name:
             node_name = "numpy"
@@ -33,7 +33,7 @@ class TransformerFactory:
 
         return base_path + f".{node_name}_transformer"
 
-    def __get_transformer_name(self, node):
+    def __get_transformer_name(self, node: Union[ast.AST, CustomNode]):
         node_name = node.__class__.__name__.lower()
         if "numpy" in node_name:
             return "NumpyTransformer"

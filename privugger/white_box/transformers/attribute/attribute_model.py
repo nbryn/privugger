@@ -1,5 +1,5 @@
 from ..name.name_model import Name
-from .. import CustomNode
+from ...custom_node import CustomNode
 
 # Represents 'object.attribute'
 # Attribute can be a 'normal' operation (like sum) or a custom attribute

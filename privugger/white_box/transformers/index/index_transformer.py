@@ -1,15 +1,15 @@
-from ...ast_transformer import AstTransformer
+from ...white_box_ast_transformer import WhiteBoxAstTransformer
 from .index_model import Index
 import ast
 
-class IndexTransformer(AstTransformer):
+class IndexTransformer(WhiteBoxAstTransformer):
     def to_custom_model(self, node: ast.Index):
-        return self._map_to_custom_type(node.value)
+        return super().to_custom_model(node.value)
     
-    def to_pymc(self, node: Index, pymc_model_builder, condition, in_function):
-        (operand, _) = pymc_model_builder.program_variables[node.operand]
+    def to_pymc(self, node: Index, _, __):
+        (operand, _) = self.program_variables[node.operand]
         if isinstance(node.index, str):
-            (index, _) = pymc_model_builder.program_variables[node.index]
+            (index, _) = self.program_variables[node.index]
             return operand[index]
 
         return operand[node.index]

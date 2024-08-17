@@ -5,7 +5,7 @@ import os
 import copy
 import privugger.transformer.PyMC3.annotation_types as at
 from privugger.transformer.PyMC3.theano_types import TheanoToken
-from privugger.white_box.ast_transformer import AstTransformer
+from privugger.white_box.white_box_ast_transformer import WhiteBoxAstTransformer
 
 class FunctionTypeDecorator(ast.NodeTransformer):
     file_name = "temp.py"
@@ -108,7 +108,7 @@ class FunctionTypeDecorator(ast.NodeTransformer):
         os.remove("temp.py")
         function_def = self.get_function_def_ast(tree.body)
         if use_new_method:
-            return AstTransformer().transform(tree, function_def)
+            return (tree, function_def)
         
         root = self.create_decorated_function(function_def, decorators[0], decorators[1][0])    
         if isinstance(tree.body[0], ast.Import):

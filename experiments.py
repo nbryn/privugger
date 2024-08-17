@@ -230,7 +230,7 @@ ds = pv.Dataset(input_specs=[ages])
 program = pv.Program("output", dataset=ds, output_type=pv.Float, function=ages_dp)
 program.add_observation("output==44", precision=0.1)
 
-trace: az.InferenceData = pv.infer(program, cores=4, draws=10_000, method="pymc3", use_new_method=True)
+trace: az.InferenceData = pv.infer(program, cores=4, draws=10_000, method=pv.Method.PYMC, use_new_method=True)
 
 print(trace["posterior"])
 #az.plot_posterior(trace, var_names=['return - 13'], hdi_prob=.95)

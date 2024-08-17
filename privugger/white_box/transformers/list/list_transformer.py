@@ -1,12 +1,12 @@
+from ...white_box_ast_transformer import WhiteBoxAstTransformer
 from .list_model import ListNode
-from .. import AstTransformer
 import ast
 
 
-class ListTransformer(AstTransformer):
+class ListTransformer(WhiteBoxAstTransformer):
     def to_custom_node(self, node: ast.List):
-        values = list(map(self._map_to_custom_type, node.elts))
+        values = list(map(super().to_custom_model, node.elts))
         return ListNode(node.lineno, values)
-    
-    def to_pymc(self, node: ListNode, pymc_model_builder):
-        return list(map(pymc_model_builder.to_pymc, node.values))
+
+    def to_pymc(self, node: ListNode, _, __):
+        return list(map(super().to_pymc, node.values))

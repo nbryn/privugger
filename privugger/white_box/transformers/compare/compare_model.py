@@ -1,5 +1,5 @@
 from ..operation.operation_model import Operation
-from .. import CustomNode
+from ...custom_node import CustomNode
 
 
 # TODO: Compare doesn't have to be a operation, can also be function call

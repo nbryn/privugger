@@ -1,4 +1,4 @@
-from .. import CustomNode
+from ...custom_node import CustomNode
 from typing import List
 
 

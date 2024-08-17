@@ -1,5 +1,5 @@
 from ..operation.operation_model import Operation
-from .. import CustomNode
+from ...custom_node import CustomNode
 
 class UnaryOp(CustomNode):
     operation: Operation = None
