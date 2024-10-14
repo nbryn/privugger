@@ -1,10 +1,10 @@
-from ...white_box_ast_transformer import WhiteBoxAstTransformer
+from ...ast_transformer import AstTransformer
 from ..constant.constant_model import Constant
 from .for_model import For
 import ast
 
 
-class ForTransformer(WhiteBoxAstTransformer):
+class ForTransformer(AstTransformer):
     def to_custom_model(self, node: ast.For):
         # Loops are not well supported in PyMC, meaning they shouldn't be translated
         # into PyMC variables but instead function as a 'normal' python loop.

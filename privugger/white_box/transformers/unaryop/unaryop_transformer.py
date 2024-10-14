@@ -1,11 +1,11 @@
-from ...white_box_ast_transformer import WhiteBoxAstTransformer
-from .unaryop_model import UnaryOp
+from ...ast_transformer import AstTransformer
+from .unaryop_model import UnaryOp, UnaryOperation
 import ast
 
 
-class UnaryOpTransformer(WhiteBoxAstTransformer):
+class UnaryOpTransformer(AstTransformer):
     def to_custom_model(self, node: ast.UnaryOp):
-        operation = super()._map_operation(node.op)
+        operation = self._to_custom_operation(node.op)
         operand = super().to_custom_model(node.operand)
 
         return UnaryOp(node.lineno, operand, operation)
@@ -15,4 +15,24 @@ class UnaryOpTransformer(WhiteBoxAstTransformer):
         if isinstance(operand, tuple):
             operand = operand[0]
 
-        return super()._to_pymc_operation(node.operation, operand)
+        return self._to_pymc_operation(node.operation, operand)
+    
+    def _to_custom_operation(self, operation: ast):
+        if isinstance(operation, ast.UAdd):
+            return UnaryOperation.ADD
+
+        if isinstance(operation, ast.USub):
+            return UnaryOperation.SUB
+
+        print(operation)
+        raise TypeError("Unknown UnaryOp operation")
+
+    def _to_pymc_operation(self, operation: UnaryOperation, operand):
+        if operation == UnaryOperation.SUB:
+            return -operand
+
+        if operation == UnaryOperation.ADD:
+            return +operand
+
+        print(operation)
+        raise TypeError("Unsupported UnaryOp operation")

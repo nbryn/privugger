@@ -1,16 +1,21 @@
-from ...white_box_ast_transformer import WhiteBoxAstTransformer
+from ...ast_transformer import AstTransformer
+from ..attribute.attribute_model import Attribute, AttributeOperation
+from ..attribute.attribute_transformer import AttributeTransformer
 from ..numpy.numpy_transformer import NumpyTransformer
 from ..return_transformer.return_model import Return
-from ..attribute.attribute_model import Attribute
 from ..name.name_model import Name
 from ..call.call_model import Call
 import ast
 
 
-class CallTransformer(WhiteBoxAstTransformer):
+class CallTransformer(AstTransformer):
     numpy_transformer = NumpyTransformer()
 
     def to_custom_model(self, node: ast.Call):
+        if isinstance(node.func, ast.Name) and node.func.id in [operation.name.lower() for operation in AttributeOperation]:
+            attribute = ast.Attribute(value=node.args[0], attr=node.func.id, lineno=node.lineno)
+            return AttributeTransformer().to_custom_model(attribute)
+            
         if self.numpy_transformer.is_numpy(node.func):
             return self.numpy_transformer.to_custom_model(node)
 

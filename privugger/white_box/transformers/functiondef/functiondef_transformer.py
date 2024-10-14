@@ -1,9 +1,9 @@
-from ...white_box_ast_transformer  import WhiteBoxAstTransformer
+from ...ast_transformer  import AstTransformer
 from .functiondef_model import FunctionDef
 import ast
 
 
-class FunctionDefTransformer(WhiteBoxAstTransformer):
+class FunctionDefTransformer(AstTransformer):
     def to_custom_model(self, node: ast.FunctionDef):
         args = list(map(lambda arg: arg.arg, node.args.args))
         body = self.collect_and_sort_by_line_number(node.body)

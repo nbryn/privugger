@@ -6,7 +6,7 @@ import matplotlib.pyplot as plt
 import arviz as az
 import numpy as np
 import warnings
-import pymc3 as pm
+import pymc as pm
 
 # disable FutureWarnings to have a cleaner output
 warnings.simplefilter(action="ignore", category=FutureWarning)
@@ -16,31 +16,6 @@ sys.path.append(os.path.join("../../"))
 
 def avg(ages):
     return (ages.sum()) / (ages.size)
-
-# Handle AST node with return that isn't a 'top level' node
-def analyze_in_progress(ages):
-    if ages[0] < 35:
-        subset = ages[:20]
-        avg = subset.sum() / subset.size
-        return avg
-
-    if ages[0] < 40:
-        if ages[0] < 42:
-            subset = ages[:40]
-            avg = subset.sum() / subset.size
-            return avg
-        else:
-            subset = ages[:50]
-            avg = subset.sum() / subset.size
-            return avg
-
-    elif ages[0] < 45:
-        subset = ages[:60]
-        avg = subset.sum() / subset.size
-        return avg
-
-    return ages.sum() / ages.size
-
 
 # This should be mapped to what is shown in temp_pymc
 def masking(ages):
@@ -189,6 +164,28 @@ def neural_network(ages):
 
     return final_layer_output
 
+
+# TODO: Doesn't work
+def next():
+    temp = []
+    output = [1, 2, 3]
+    output[len(temp)] = 0
+
+    return output
+
+
+# TODO: Confirm trace look as expected. neural_network2 afterwards
+# use sum(ages) instead and len(ages) 
+def ages_dp(ages):
+    ages0 = ages[0]
+    avg = sum(ages) / len(ages)
+    epsilon = 0.1
+    delta = 100 / len(ages) # assumes ages are in the interval [0-100]
+    nu = np.random.laplace(loc=0.0, scale=delta / epsilon)
+    dp_avg = avg + nu
+
+    return dp_avg
+
 # TODO: Get this to work
 def neural_network2(input):
     # Activation function
@@ -203,31 +200,9 @@ def neural_network2(input):
 
     return final_output
 
-
-# TODO: Doesn't work
-def next():
-    temp = []
-    output = [1, 2, 3]
-    output[len(temp)] = 0
-
-    return output
-
-
-# TODO: Confirm trace look as expected. neural_network2 afterwards
-def ages_dp(ages):
-    ages0 = ages[0]
-    avg = ages.sum() / ages.size
-    epsilon = 0.1
-    delta = 100 / ages.size # assumes ages are in the interval [0-100]
-    nu = np.random.laplace(loc=0.0, scale=delta / epsilon)
-    dp_avg = avg + nu
-
-    return dp_avg
-
-
 ages = pv.Uniform("ages", lower=0, upper=100, num_elements=20)
 ds = pv.Dataset(input_specs=[ages])
-program = pv.Program("output", dataset=ds, output_type=pv.Float, function=ages_dp)
+program = pv.Program("output", dataset=ds, output_type=pv.Float, function=neural_network2)
 program.add_observation("output==44", precision=0.1)
 
 trace: az.InferenceData = pv.infer(program, cores=4, draws=10_000, method=pv.Method.PYMC, use_new_method=True)

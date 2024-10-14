@@ -1,9 +1,9 @@
-from ...white_box_ast_transformer import WhiteBoxAstTransformer
+from ...ast_transformer import AstTransformer
 from .name_model import Name
 import ast
 
 
-class NameTransformer(WhiteBoxAstTransformer):
+class NameTransformer(AstTransformer):
     def to_custom_model(self, node: ast.Name):
         return Name(node.lineno, node.id)
 

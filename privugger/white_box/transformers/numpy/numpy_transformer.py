@@ -1,12 +1,15 @@
-from ...white_box_ast_transformer import WhiteBoxAstTransformer
-import pymc3.math as pm_math
+from ...ast_transformer import AstTransformer
+import pymc.math as pm_math
 from .numpy_model import *
-import pymc3 as pm
+import pymc as pm
 import ast
 
 
-class NumpyTransformer(WhiteBoxAstTransformer):
+class NumpyTransformer(AstTransformer):
     def is_numpy(self, func):
+        if isinstance(func, ast.Name):
+            return False
+        
         if isinstance(func.value, ast.Name):
             return func.value.id == "np"
 

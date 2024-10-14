@@ -1,8 +1,12 @@
-from ..operation.operation_model import Operation
 from ...custom_node import CustomNode
+from enum import Enum
+
+class UnaryOperation(Enum):
+    ADD = 1
+    SUB = 2
 
 class UnaryOp(CustomNode):
-    operation: Operation = None
+    operation: UnaryOperation = None
     operand: CustomNode = None
 
     def __init__(self, line_number, operand, operation):

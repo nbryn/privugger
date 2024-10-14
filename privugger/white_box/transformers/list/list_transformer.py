@@ -1,9 +1,9 @@
-from ...white_box_ast_transformer import WhiteBoxAstTransformer
+from ...ast_transformer import AstTransformer
 from .list_model import ListNode
 import ast
 
 
-class ListTransformer(WhiteBoxAstTransformer):
+class ListTransformer(AstTransformer):
     def to_custom_node(self, node: ast.List):
         values = list(map(super().to_custom_model, node.elts))
         return ListNode(node.lineno, values)

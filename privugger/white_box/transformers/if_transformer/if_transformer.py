@@ -1,18 +1,21 @@
-from ...white_box_ast_transformer import WhiteBoxAstTransformer
+from ...ast_transformer import AstTransformer
 from .if_model import If
 import ast
 
 
-class IfTransformer(WhiteBoxAstTransformer):
+class IfTransformer(AstTransformer):
     def to_custom_model(self, node: ast.If):
-        # TODO: Move to 'handle_if' method
-        # Note 'node.orelse' is not handled here but as a separate node
-        body_custom_nodes = super().collect_and_sort_by_line_number(node.body)
+        orelse = super().collect_and_sort_by_line_number(node.orelse)
+        body = super().collect_and_sort_by_line_number(node.body)
         condition = super().to_custom_model(node.test)
 
-        return If(node.lineno, condition, body_custom_nodes)
+        return If(node.lineno, condition, body, orelse)
 
-    def to_pymc(self, node: If, condition, in_function):
-        condition = super().to_pymc(node.condition, condition, in_function)
-        for child_node in node.body:
-            super().to_pymc(child_node, condition, condition, in_function)
+    # TODO: This probably doesn't handle nested if statements.
+    # TODO: This doesn't handle 'elif'.
+    # AssignTransformer handles conditionally assigning values
+    # depending on whether the condition is true or not.
+    def to_pymc(self, node: If, existing_condition, in_function):
+        condition = super().to_pymc(node.condition, existing_condition, in_function)
+        for child_node in node.body + node.orelse:
+            super().to_pymc(child_node, condition, in_function)

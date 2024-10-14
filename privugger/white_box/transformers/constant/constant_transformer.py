@@ -1,9 +1,9 @@
-from ...white_box_ast_transformer import WhiteBoxAstTransformer
+from ...ast_transformer import AstTransformer
 from ..constant.constant_model import Constant
 import ast
 
 
-class ConstantTransformer(WhiteBoxAstTransformer):
+class ConstantTransformer(AstTransformer):
     def to_custom_model(self, node: ast.Constant):
         return Constant(node.lineno, node if isinstance(node, int) else node.value)
 

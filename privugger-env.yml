@@ -1,15 +1,14 @@
 name: privugger
 channels:
+  - conda-forge 
   - defaults
 dependencies:
-  - numpy=1.19.5
+  - numpy=1.25
   - scikit-learn=1.1.2
-  - theano=1.0.4
-  - pymc3
+  - pymc=5.0
   - hypothesis=5.35.3
   - astor=0.8.1
   - pytest=6.2.5
   - arviz
-  - scipy=1.7
+  - scipy=1.12
   - hypothesis=5.35.3
-  - pytensor

@@ -1,10 +1,16 @@
-from ..operation.operation_model import Operation
 from ...custom_node import CustomNode
+from enum import Enum
 
+class CompareOperation(Enum):
+    EQUAL = 1
+    LT = 2
+    LTE = 3
+    GT = 4
+    GTE = 5
 
 # TODO: Compare doesn't have to be a operation, can also be function call
 class Compare(CustomNode):
-    operation: Operation = None
+    operation: CompareOperation = None
     right = None
     left = None
 
@@ -17,8 +23,8 @@ class Compare(CustomNode):
 
 # TODO: Compare2 doesn't have to be a operation, can also be function call
 class Compare2(CustomNode):
-    right_operation: Operation = None
-    left_operation: Operation = None
+    right_operation: CompareOperation = None
+    left_operation: CompareOperation = None
     middle = None
     right = None
     left = None
@@ -32,3 +38,6 @@ class Compare2(CustomNode):
         self.middle = middle
         self.right = right
         self.left = left
+
+
+

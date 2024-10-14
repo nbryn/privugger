@@ -6,14 +6,9 @@ from privugger.transformer.PyMC3.program_output import *
 from privugger.white_box.method import Method
 
 import astor
-import pymc3 as pm
-import pymc3.math as pm_math
+import pymc as pm
 import arviz as az
-import numpy as np
-import os
 import importlib
-import theano.tensor as tt
-import theano
 
 # Create a global pymc3 model and list of priors
 global_model = None
@@ -263,7 +258,7 @@ def infer(
                 trace = None
                 with model:
                     prior = get_prior(num_specs, input_specs)
-                    WhiteBoxAstTransformer(
+                    AstTransformer(
                         global_priors,
                         prog.dataset.input_specs[0].num_elements,
                         model,
