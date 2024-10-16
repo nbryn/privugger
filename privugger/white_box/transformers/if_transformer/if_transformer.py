@@ -1,4 +1,5 @@
 from ...ast_transformer import AstTransformer
+from ..assign.assign_model import Assign
 from .if_model import If
 import ast
 
@@ -12,7 +13,6 @@ class IfTransformer(AstTransformer):
         return If(node.lineno, condition, body, orelse)
 
     # TODO: This probably doesn't handle nested if statements.
-    # TODO: This doesn't handle 'elif'.
     # AssignTransformer handles conditionally assigning values
     # depending on whether the condition is true or not.
     def to_pymc(self, node: If, existing_condition, in_function):

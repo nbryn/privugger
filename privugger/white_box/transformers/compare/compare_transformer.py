@@ -42,6 +42,9 @@ class CompareTransformer(AstTransformer):
         if isinstance(operation, ast.Eq):
             return CompareOperation.EQUAL
         
+        if isinstance(operation, ast.NotEq):
+            return CompareOperation.NOTEQUAL
+        
         if isinstance(operation, ast.Lt):
             return CompareOperation.LT
 
@@ -60,6 +63,9 @@ class CompareTransformer(AstTransformer):
     def _to_pymc_operation(self, operation: CompareOperation, operand, right=None):
         if operation == CompareOperation.EQUAL:
             return pm_math.eq(operand, right)
+        
+        if operation == CompareOperation.NOTEQUAL:
+            return pm_math.neq(operand, right)
 
         if operation == CompareOperation.LT:
             return pm_math.lt(operand, right)

@@ -1,7 +1,7 @@
 from ...ast_transformer import AstTransformer
 from .boolop_model import BoolOp, BoolOperation
-import pymc.math as pm_math
 import numpy as np
+import pymc as pm
 import ast
 
 class BoolOpTransformer(AstTransformer):
@@ -38,10 +38,10 @@ class BoolOpTransformer(AstTransformer):
     
     def _to_pymc_operation(self, operation: BoolOperation, left, right):
         if operation == BoolOperation.AND:
-            return pm_math.and_(np.array(left), np.array(right))
+            return pm.math.and_(np.array(left), np.array(right))
         
         if operation == BoolOperation.OR:
-            return pm_math.or_(np.array(left), np.array(right))
+            return pm.math.or_(np.array(left), np.array(right))
 
         print(operation)
         raise TypeError("Unsupported BoolOp operation")

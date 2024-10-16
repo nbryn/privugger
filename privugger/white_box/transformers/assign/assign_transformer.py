@@ -1,7 +1,7 @@
 from ...ast_transformer import AstTransformer
 from ..subscript.subscript_model import Subscript
 from ..constant.constant_model import Constant
-from ..list.list_model import ListNode
+from ..list.list_model import List as ListModel
 from ..name.name_model import Name
 from collections.abc import Sized
 from .assign_model import *
@@ -28,7 +28,6 @@ class AssignTransformer(AstTransformer):
         return Assign(temp_node.id, node.lineno, value)
 
     def to_pymc(self, node: Assign, condition, in_function):
-        print(node.value)
         variable = super().to_pymc(node.value, condition, in_function)
         if isinstance(variable, bool):
             self.program_variables[node.name] = (variable, -1)
@@ -63,8 +62,7 @@ class AssignTransformer(AstTransformer):
 
             del self.pymc_model.named_vars[pymc_variable_name]
 
-        # Condition means we're inside if statement
-        # TODO: Move to if_transformer?
+        # Condition means we're inside if/while statement
         if condition:
             # Variable declared outside if
             if node.name in self.program_variables:
@@ -84,8 +82,8 @@ class AssignTransformer(AstTransformer):
 
         return tensor_var
 
-    # This method isn't needed if we constrain input program as follows:
-    # - Variables must be initialized outside if
+    # This method isn't needed if we constrain the input program as follows:
+    # - Variables must be initialized outside if/while
     def __get_default_pymc_value(self, node):
         if isinstance(node, Constant):
             if isinstance(node.value, int):
@@ -94,7 +92,7 @@ class AssignTransformer(AstTransformer):
             if isinstance(node.value, float):
                 return (pt.as_tensor_variable(0.0), None)
 
-        if isinstance(node, ListNode):
+        if isinstance(node, ListModel):
             if len(node.values) == 0:
                 return ([], 0)
 

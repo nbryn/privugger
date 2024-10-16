@@ -3,10 +3,11 @@ from enum import Enum
 
 class CompareOperation(Enum):
     EQUAL = 1
-    LT = 2
-    LTE = 3
-    GT = 4
-    GTE = 5
+    NOTEQUAL = 2
+    LT = 3
+    LTE = 4
+    GT = 5
+    GTE = 6
 
 # TODO: Compare doesn't have to be a operation, can also be function call
 class Compare(CustomNode):

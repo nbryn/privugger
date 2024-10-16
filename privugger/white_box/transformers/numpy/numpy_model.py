@@ -23,7 +23,7 @@ class NumpyFunction(Numpy):
     arguments: List[CustomNode] = []
 
     def __init__(self, line_number, operation: NumpyOperation, arguments):
-        super().__init__(line_number, operation.value, arguments)
+        super().__init__(line_number, operation.name)
         self.operation = operation
         self.arguments = arguments
 

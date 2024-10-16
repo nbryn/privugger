@@ -1,5 +1,5 @@
 from ...ast_transformer import AstTransformer
-import pymc.math as pm_math
+import pytensor.tensor as pt
 from .numpy_model import *
 import pymc as pm
 import ast
@@ -9,7 +9,7 @@ class NumpyTransformer(AstTransformer):
     def is_numpy(self, func):
         if isinstance(func, ast.Name):
             return False
-        
+
         if isinstance(func.value, ast.Name):
             return func.value.id == "np"
 
@@ -22,8 +22,10 @@ class NumpyTransformer(AstTransformer):
         if self.__is_distribution(node.func.attr):
             return self.__handle_numpy_distribution(node)
 
-        np_operation = self.__to_custom_operation(node.attr)
+        attribute = node.attr if hasattr(node, "attr") else node.func.attr
+        np_operation = self.__to_custom_operation(attribute)
         mapped_arguments = list(map(super().to_custom_model, node.args))
+
         return NumpyFunction(node.lineno, np_operation, mapped_arguments)
 
     def __is_distribution(self, value):
@@ -64,13 +66,13 @@ class NumpyTransformer(AstTransformer):
         if isinstance(node, NumpyFunction):
             mapped_arguments = list(map(super().to_pymc, node.arguments))
             if node.operation == NumpyOperation.ARRAY:
-                return mapped_arguments[0]
+                return pt.as_tensor_variable(mapped_arguments[0])
 
             if node.operation == NumpyOperation.EXP:
-                return pm_math.exp(mapped_arguments[0])
+                return pm.math.exp(mapped_arguments[0])
 
             if node.operation == NumpyOperation.DOT:
-                return pm_math.dot(mapped_arguments[0][0], mapped_arguments[1][0])
+                return pm.math.dot(mapped_arguments[0][0], mapped_arguments[1][0])
 
             print(type(node))
             raise TypeError("Unknown numpy operation")

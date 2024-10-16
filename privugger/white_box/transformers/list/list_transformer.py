@@ -1,12 +1,12 @@
 from ...ast_transformer import AstTransformer
-from .list_model import ListNode
+from .list_model import List
 import ast
 
 
 class ListTransformer(AstTransformer):
-    def to_custom_node(self, node: ast.List):
+    def to_custom_model(self, node: ast.List):
         values = list(map(super().to_custom_model, node.elts))
-        return ListNode(node.lineno, values)
+        return List(node.lineno, values)
 
-    def to_pymc(self, node: ListNode, _, __):
+    def to_pymc(self, node: List, _, __):
         return list(map(super().to_pymc, node.values))

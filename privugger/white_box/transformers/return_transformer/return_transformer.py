@@ -11,7 +11,6 @@ class ReturnTransformer(AstTransformer):
         return Return(node.lineno, value)
 
     def to_pymc(self, node: Return, condition, in_function):
-        print(node)
         value = super().to_pymc(node.value, condition, in_function)
         if isinstance(value, tuple):
             value = value[0]

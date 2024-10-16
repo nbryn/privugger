@@ -105,18 +105,6 @@ def call_example():
     test = ages.sum()
     return test
 
-# Works
-# TODO: Ensure we can handle 'expression if condition else expression'
-def if_example():
-    x = 5
-    y = 0
-    if x > 10:
-        y = 20 
-    else: 
-        y = 30
-
-    return y
-    
 # TODO: Try other variations of loops
 # range(10)
 # range(0, 1)
@@ -165,17 +153,8 @@ def neural_network(ages):
     return final_layer_output
 
 
-# TODO: Doesn't work
-def next():
-    temp = []
-    output = [1, 2, 3]
-    output[len(temp)] = 0
-
-    return output
-
 
 # TODO: Confirm trace look as expected. neural_network2 afterwards
-# use sum(ages) instead and len(ages) 
 def ages_dp(ages):
     ages0 = ages[0]
     avg = sum(ages) / len(ages)
@@ -186,7 +165,15 @@ def ages_dp(ages):
 
     return dp_avg
 
-# TODO: Get this to work
+# TODO: Doesn't work
+def next():
+    temp = []
+    output = [1, 2, 3]
+    output[len(temp)] = 0
+
+    return output
+
+# This works
 def neural_network2(input):
     # Activation function
     def sigmoid(x):
@@ -200,9 +187,28 @@ def neural_network2(input):
 
     return final_output
 
-ages = pv.Uniform("ages", lower=0, upper=100, num_elements=20)
+# Take a look at this if time 
+def temp2(ages):
+    def f(t):
+        h = 5 # Should be in the trace. Keep track of number of invocations for f
+        g = 6
+        return t + h + g
+
+    th = f(1)
+    th1 = f(2)
+    return th + th1
+
+# Test various numpy distributions:
+# Exponential
+# Binomial
+# Poisson
+# Uniform
+def NUMPY(ages):
+    pass
+
+ages = pv.Uniform("ages", lower=0, upper=100, num_elements=3)
 ds = pv.Dataset(input_specs=[ages])
-program = pv.Program("output", dataset=ds, output_type=pv.Float, function=neural_network2)
+program = pv.Program("output", dataset=ds, output_type=pv.Float, function=NUMPY)
 program.add_observation("output==44", precision=0.1)
 
 trace: az.InferenceData = pv.infer(program, cores=4, draws=10_000, method=pv.Method.PYMC, use_new_method=True)
