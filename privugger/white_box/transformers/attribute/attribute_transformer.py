@@ -27,12 +27,13 @@ class AttributeTransformer(AstTransformer):
         # Non 'common' attribute: Return the name of the attribute
         return attribute_name
 
-    def to_pymc(self, node: Attribute, condition, in_function):
-        (operand, size) = super().to_pymc(node.operand, condition, in_function)
-        print(type(operand))
+    def to_pymc(self, node: Attribute, conditions: dict, in_function):
+        (operand, size) = super().to_pymc(node.operand, conditions, in_function)
+
         if node.attribute == AttributeOperation.LEN:
             if size:
-                return size
+                return
+
             return (
                 operand.shape[0]
                 if isinstance(operand, pt.TensorVariable)

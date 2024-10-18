@@ -9,4 +9,3 @@ class ConstantTransformer(AstTransformer):
 
     def to_pymc(self, node: Constant, _, __):
         return node.value
-        

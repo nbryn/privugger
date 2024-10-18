@@ -7,6 +7,7 @@ from collections.abc import Sized
 from .assign_model import *
 import pytensor.tensor as pt
 import pymc as pm
+import types
 import ast
 
 
@@ -27,11 +28,17 @@ class AssignTransformer(AstTransformer):
         value = super().to_custom_model(node.value)
         return Assign(temp_node.id, node.lineno, value)
 
-    def to_pymc(self, node: Assign, condition, in_function):
-        variable = super().to_pymc(node.value, condition, in_function)
+    def to_pymc(self, node: Assign, conditions: dict, in_function):
+        variable = super().to_pymc(node.value, conditions, in_function)
         if isinstance(variable, bool):
             self.program_variables[node.name] = (variable, -1)
             return
+
+        # 'variable' is a function that returns a random variable
+        if isinstance(variable, types.FunctionType):
+            tensor_var = variable(node.name_with_line_number)
+            self.program_variables[node.name] = (tensor_var, None)
+            return tensor_var
 
         size = len(variable) if isinstance(variable, Sized) else None
         if isinstance(variable, tuple):
@@ -54,7 +61,7 @@ class AssignTransformer(AstTransformer):
             tensor_var = pt.set_subtensor(operand[index], tensor_var)
 
             # If we mutate e.g. a list we need to replace the original list
-            # but keep the variable name and line number
+            # but keep the variable name and line number.
             for var_name in self.pymc_model.named_vars:
                 if var_name.startswith(node.name):
                     pymc_variable_name = var_name
@@ -62,22 +69,36 @@ class AssignTransformer(AstTransformer):
 
             del self.pymc_model.named_vars[pymc_variable_name]
 
-        # Condition means we're inside if/while statement
-        if condition:
+        # If 'conditions' isn't empty we're inside if/while statement.
+        if len(conditions) > 0:
+            # 'combined_conditions' handles nested if's.
+            list_conditions = [condition for condition in conditions.values()]
+            combined_conditions = list_conditions[0]
+            for condition in list_conditions[1:]:
+                combined_conditions = pm.math.and_(combined_conditions, condition)
+                
             # Variable declared outside if
+            # TODO: This doesn't work inside a loop as all occurrences
+            # will set to value of the last time it was assigned.
+            # Probably need to use variable with line number as name inside loop
             if node.name in self.program_variables:
                 (current_var, size) = self.program_variables[node.name]
-                tensor_var = pm.math.switch(condition, tensor_var, current_var)
+                tensor_var = pm.math.switch(
+                    combined_conditions, tensor_var, current_var
+                )
 
             # Variable declared inside if
             else:
                 (default_value, size) = self.__get_default_pymc_value(node.value)
                 value = super().to_pymc(node.value)
-                tensor_var = pm.math.switch(condition, value, default_value)
+                tensor_var = pm.math.switch(combined_conditions, value, default_value)
 
         self.program_variables[node.name] = (tensor_var, size)
-
         if not in_function:
+            # Assignment in loop to variable that already exists
+            if pymc_variable_name in self.pymc_model.named_vars:
+                del self.pymc_model.named_vars[pymc_variable_name]
+
             pm.Deterministic(pymc_variable_name, tensor_var)
 
         return tensor_var

@@ -1,5 +1,6 @@
 from ...ast_transformer import AstTransformer
 from .unaryop_model import UnaryOp, UnaryOperation
+import pymc as pm
 import ast
 
 
@@ -23,6 +24,9 @@ class UnaryOpTransformer(AstTransformer):
 
         if isinstance(operation, ast.USub):
             return UnaryOperation.SUB
+        
+        if isinstance(operation, ast.Not):
+            return UnaryOperation.NOT
 
         print(operation)
         raise TypeError("Unknown UnaryOp operation")
@@ -33,6 +37,9 @@ class UnaryOpTransformer(AstTransformer):
 
         if operation == UnaryOperation.ADD:
             return +operand
+        
+        if operation == UnaryOperation.NOT:
+            return not operand
 
         print(operation)
         raise TypeError("Unsupported UnaryOp operation")

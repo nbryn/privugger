@@ -30,7 +30,7 @@ class TransformerFactory:
             node_name = "numpy"
 
         base_path = f"privugger.white_box.transformers.{node_name}"
-        if node_name in ["return", "for", "if", "while"]:
+        if node_name in ["return", "break", "while", "for", "if"]:
             return base_path + f"_transformer.{node_name}_transformer"
 
         return base_path + f".{node_name}_transformer"

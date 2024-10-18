@@ -6,6 +6,24 @@ import ast
 
 
 class NumpyTransformer(AstTransformer):
+    numpy_to_custom_distribution_map = {
+        "exponential": (NumpyExponential, ["scale"]),
+        "laplace": (NumpyLaplace, ["loc", "scale"]),
+        "uniform": (NumpyUniform, ["low", "high"]),
+        "normal": (NumpyNormal, ["loc", "scale"]),
+        "binomial": (NumpyBinomial, ["n", "p"]),
+        "poisson": (NumpyPoisson, ["lam"]),
+    }
+
+    custom_distribution_to_pymc_map = {
+        NumpyExponential: (pm.Exponential, ["scale"]),
+        NumpyLaplace: (pm.Laplace, ["loc", "scale"]),
+        NumpyUniform: (pm.Uniform, ["low", "high"]),
+        NumpyNormal: (pm.Normal, ["loc", "scale"]),
+        NumpyBinomial: (pm.Binomial, ["n", "p"]),
+        NumpyPoisson: (pm.Poisson, ["lam"]),
+    }
+
     def is_numpy(self, func):
         if isinstance(func, ast.Name):
             return False
@@ -30,25 +48,31 @@ class NumpyTransformer(AstTransformer):
 
     def __is_distribution(self, value):
         return any(
-            value == distribution.value.lower()
-            for distribution in NumpyDistributionType
+            value == distribution
+            for distribution in self.numpy_to_custom_distribution_map.keys()
         )
 
     def __handle_numpy_distribution(self, node: ast.Call):
-        loc = super().to_custom_model(node.keywords[0].value)
-        scale = super().to_custom_model(node.keywords[1].value)
-
-        if node.func.attr == "normal":
-            return NumpyDistribution(
-                node.lineno, NumpyDistributionType.NORMAL, scale, loc
+        if len(node.keywords) == 0:
+            # Use np.random.exponential(scale=1) instead of np.random.exponential(1)
+            raise TypeError(
+                "Keyword arguments must be used when working with distributions"
             )
 
-        if node.func.attr == "laplace":
-            return NumpyDistribution(
-                node.lineno, NumpyDistributionType.LAPLACE, scale, loc
-            )
+        if self.__find_argument(node, "size") != None:
+            raise TypeError("The size keyword isn't supported yet")
 
-        raise TypeError("Unknown numpy distribution")
+        if node.func.attr not in self.numpy_to_custom_distribution_map:
+            raise TypeError(f"Numpy distribution {node.func.attr} isn't supported yet")
+
+        dist_class, params = self.numpy_to_custom_distribution_map[node.func.attr]
+        args = [self.__find_argument(node, param) for param in params]
+
+        return dist_class(node.lineno, *args)
+
+    def __find_argument(self, node, keyword):
+        argument = next((x.value for x in node.keywords if x.arg == keyword), None)
+        return super().to_custom_model(argument)
 
     def __to_custom_operation(self, operation):
         if operation == "array":
@@ -62,7 +86,7 @@ class NumpyTransformer(AstTransformer):
 
         raise TypeError("Unknown numpy function")
 
-    def to_pymc(self, node: Numpy, condition, in_function):
+    def to_pymc(self, node: Numpy, conditions: dict, in_function):
         if isinstance(node, NumpyFunction):
             mapped_arguments = list(map(super().to_pymc, node.arguments))
             if node.operation == NumpyOperation.ARRAY:
@@ -75,16 +99,26 @@ class NumpyTransformer(AstTransformer):
                 return pm.math.dot(mapped_arguments[0][0], mapped_arguments[1][0])
 
             print(type(node))
-            raise TypeError("Unknown numpy operation")
+            raise TypeError("Unknown Numpy function")
 
-        if isinstance(node, NumpyDistribution):
-            loc = super().to_pymc(node.loc, condition, in_function)
-            scale = super().to_pymc(node.scale, condition, in_function)
-            if node.distribution == NumpyDistributionType.NORMAL:
-                return pm.Normal(node.name_with_line_number, loc, scale)
+        return self.__to_pymc_distribution(node, conditions, in_function)
 
-            if node.distribution == NumpyDistributionType.LAPLACE:
-                return pm.Laplace(node.name_with_line_number, loc, scale)
+    def __to_pymc_distribution(self, node: Numpy, condition, in_function):
+        for dist_type, (
+            pymc_dist,
+            params,
+        ) in self.custom_distribution_to_pymc_map.items():
+            if isinstance(node, dist_type):
+                pymc_params = [
+                    super(self.__class__, self).to_pymc(
+                        getattr(node, param), condition, in_function
+                    )
+                    for param in params
+                ]
 
-            print(type(node))
-            raise TypeError("Unknown numpy distribution")
+                # We don't have access to the variable name here, so we have to return
+                # a function that can be called in AssignTransformer (line 36)
+                return lambda var_name: pymc_dist(var_name, *pymc_params)
+
+        print(type(node))
+        raise TypeError("Unknown Numpy distribution")

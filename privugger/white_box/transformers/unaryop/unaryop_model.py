@@ -4,6 +4,7 @@ from enum import Enum
 class UnaryOperation(Enum):
     ADD = 1
     SUB = 2
+    NOT = 3
 
 class UnaryOp(CustomNode):
     operation: UnaryOperation = None

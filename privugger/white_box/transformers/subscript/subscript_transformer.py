@@ -6,8 +6,11 @@ import ast
 
 class SubscriptTransformer(AstTransformer):
     def to_custom_model(self, node: ast.Subscript):
-        print(ast.dump(node))
-        if isinstance(node.slice, ast.Index) or isinstance(node.slice, ast.Constant):
+        if (
+            isinstance(node.slice, ast.Index)
+            or isinstance(node.slice, ast.Constant)
+            or isinstance(node.slice, ast.Name)
+        ):
             return IndexTransformer().to_custom_model(node)
 
         lower = super().to_custom_model(node.slice.lower)
@@ -16,11 +19,13 @@ class SubscriptTransformer(AstTransformer):
 
         return Subscript(node.lineno, dependency_name, lower, upper)
 
-    def to_pymc(self, node: Subscript, condition, in_function):
+    def to_pymc(self, node: Subscript, conditions: dict, in_function):
         (operand, size) = self.program_variables[node.operand]
-        lower = super().to_pymc(node.lower, condition, in_function) if node.lower else 0
+        lower = (
+            super().to_pymc(node.lower, conditions, in_function) if node.lower else 0
+        )
         upper = (
-            super().to_pymc(node.upper, condition, in_function) if node.upper else size
+            super().to_pymc(node.upper, conditions, in_function) if node.upper else size
         )
 
         return operand[lower:upper]

@@ -11,11 +11,15 @@ class IndexTransformer(AstTransformer):
                 index = node.slice.value
                 return Index(node.lineno, node.value.id, index)
 
+            if isinstance(node.slice, ast.Name):
+                return Index(node.lineno, node.value.id, node.slice.id)
+
             index = (
                 node.slice.value.value
                 if hasattr(node.value, "value")
                 else node.slice.value.id
             )
+
             return Index(node.lineno, node.value.id, index)
 
         return super().to_custom_model(node.value)
