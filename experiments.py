@@ -172,15 +172,6 @@ def ages_dp(ages):
     return dp_avg
 
 
-# TODO: Doesn't work
-def next():
-    temp = []
-    output = [1, 2, 3]
-    output[len(temp)] = 0
-
-    return output
-
-
 # This works
 def neural_network2(input):
     # Activation function
@@ -207,7 +198,7 @@ def temp2(ages):
     th1 = f(2)
     return th + th1
 
-
+# TODO: This assumes 2D array input. Find a way to test.
 def naive_k_anonymity(ages):
     k = 2
     if len(ages) == 0:
@@ -233,45 +224,11 @@ def naive_k_anonymity(ages):
         if not k_prime < k:
             return ages
 
-    return ages
-
-# TODO: All instances of 't' should not be set to the same final value
-# IE if the first else has been hit, then t on line 247 should be 200 otherwise just 5
-# atm all instances of t in the loop is set to 100 in the output
-def TEMP2(ages):
-    t = 5
-    for i in range(10):
-        if i == 9:
-            t = 100
-     
-        else:
-            t = 200
-            
-            if t == 200:
-                t = 300
-            else:
-                t = 500
-
-    return t
-
-
-# TODO: Break doesn't work
-# IE: this program returns 9
-def TEMP(ages):
-    t = 5
-    for i in range(10):
-        t = i
-        if i == 8:
-            break
-
-
-    return t
-
-
+    return ages       
 
 ages = pv.Uniform("ages", lower=0, upper=100, num_elements=20)
 ds = pv.Dataset(input_specs=[ages])
-program = pv.Program("output", dataset=ds, output_type=pv.Float, function=TEMP)
+program = pv.Program("output", dataset=ds, output_type=pv.Float, function=next)
 program.add_observation("output==44", precision=0.1)
 
 trace: az.InferenceData = pv.infer(

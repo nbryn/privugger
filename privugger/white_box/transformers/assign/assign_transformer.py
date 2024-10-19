@@ -5,6 +5,7 @@ from ..list.list_model import List as ListModel
 from ..name.name_model import Name
 from collections.abc import Sized
 from .assign_model import *
+from functools import reduce
 import pytensor.tensor as pt
 import pymc as pm
 import types
@@ -20,6 +21,8 @@ class AssignTransformer(AstTransformer):
             temp_node = temp_node.value
 
         if isinstance(node.targets[0], ast.Subscript):
+            print("HERE")
+            print(ast.dump(node))
             index = super().to_custom_model(node.targets[0].slice)
             value = super().to_custom_model(node.value)
 
@@ -44,8 +47,8 @@ class AssignTransformer(AstTransformer):
         if isinstance(variable, tuple):
             variable = variable[0]
 
-        # This handles assignment to parameter/argument
-        # We shouldn't (and can't) change the input as it's a distribution
+        # This handles assignment to parameter/argument.
+        # We shouldn't (and can't) change the input as it's a distribution.
         if (
             isinstance(node.value, Name)
             and node.value.reference_to in self.program_arguments
@@ -56,7 +59,10 @@ class AssignTransformer(AstTransformer):
         pymc_variable_name = node.name_with_line_number
         tensor_var = pt.as_tensor_variable(variable)
         if isinstance(node, AssignIndex):
-            (index, _) = super().to_pymc(node.index)
+            index = super().to_pymc(node.index)
+            if isinstance(index, tuple):
+                index = index[0]
+
             (operand, _) = self.program_variables[node.name]
             tensor_var = pt.set_subtensor(operand[index], tensor_var)
 
@@ -69,33 +75,32 @@ class AssignTransformer(AstTransformer):
 
             del self.pymc_model.named_vars[pymc_variable_name]
 
-        # If 'conditions' isn't empty we're inside if/while statement.
+        # If 'conditions' isn't empty we're inside (nested) if/while statement(s).
         if len(conditions) > 0:
             # 'combined_conditions' handles nested if's.
-            list_conditions = [condition for condition in conditions.values()]
-            combined_conditions = list_conditions[0]
-            for condition in list_conditions[1:]:
-                combined_conditions = pm.math.and_(combined_conditions, condition)
-                
+            combined_conditions = reduce(pm.math.and_, list(conditions.values()))
+
             # Variable declared outside if
             # TODO: This doesn't work inside a loop as all occurrences
             # will set to value of the last time it was assigned.
             # Probably need to use variable with line number as name inside loop
+            # Problem: First iteration program_variables[node.name_with_line_number] will not be present
             if node.name in self.program_variables:
                 (current_var, size) = self.program_variables[node.name]
                 tensor_var = pm.math.switch(
                     combined_conditions, tensor_var, current_var
                 )
 
-            # Variable declared inside if
+            # Variable declared inside .
             else:
+                print("should not get here")
                 (default_value, size) = self.__get_default_pymc_value(node.value)
                 value = super().to_pymc(node.value)
                 tensor_var = pm.math.switch(combined_conditions, value, default_value)
 
         self.program_variables[node.name] = (tensor_var, size)
         if not in_function:
-            # Assignment in loop to variable that already exists
+            # Assignment inside loop to existing variable.
             if pymc_variable_name in self.pymc_model.named_vars:
                 del self.pymc_model.named_vars[pymc_variable_name]
 
@@ -104,7 +109,7 @@ class AssignTransformer(AstTransformer):
         return tensor_var
 
     # This method isn't needed if we constrain the input program as follows:
-    # - Variables must be initialized outside if/while
+    # - Variables must be initialized outside if/while.
     def __get_default_pymc_value(self, node):
         if isinstance(node, Constant):
             if isinstance(node.value, int):

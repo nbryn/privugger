@@ -1,7 +1,6 @@
 from ...ast_transformer import AstTransformer
 from .compare_model import Compare, Compare2, CompareOperation
 import pymc.math as pm_math
-from typing import Union
 import ast
 
 
@@ -21,8 +20,7 @@ class CompareTransformer(AstTransformer):
             node.lineno, left, left_operation, middle_or_right, right, right_operation
         )
 
-        
-    def to_pymc(self, node: Union[Compare, Compare2], condition, in_function):
+    def to_pymc(self, node: Compare | Compare2, condition, in_function):
         left = super().to_pymc(node.left, condition, in_function)
         right = super().to_pymc(node.right, condition, in_function)
 
@@ -41,10 +39,10 @@ class CompareTransformer(AstTransformer):
     def _to_custom_operation(self, operation):
         if isinstance(operation, ast.Eq):
             return CompareOperation.EQUAL
-        
+
         if isinstance(operation, ast.NotEq):
             return CompareOperation.NOTEQUAL
-        
+
         if isinstance(operation, ast.Lt):
             return CompareOperation.LT
 
@@ -59,11 +57,11 @@ class CompareTransformer(AstTransformer):
 
         print(operation)
         raise TypeError("Unknown AST operation")
-    
+
     def _to_pymc_operation(self, operation: CompareOperation, operand, right=None):
         if operation == CompareOperation.EQUAL:
             return pm_math.eq(operand, right)
-        
+
         if operation == CompareOperation.NOTEQUAL:
             return pm_math.neq(operand, right)
 
@@ -78,6 +76,6 @@ class CompareTransformer(AstTransformer):
 
         if operation == CompareOperation.GTE:
             return pm_math.ge(operand, right)
-        
+
         print(operation)
         raise TypeError("Unsupported operation")

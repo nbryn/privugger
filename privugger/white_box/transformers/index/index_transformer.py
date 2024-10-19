@@ -1,11 +1,10 @@
 from ...ast_transformer import AstTransformer
 from .index_model import Index
-from typing import Union
 import ast
 
 
 class IndexTransformer(AstTransformer):
-    def to_custom_model(self, node: Union[ast.Index, ast.Subscript]):
+    def to_custom_model(self, node: ast.Index | ast.Subscript):
         if isinstance(node, ast.Subscript):
             if isinstance(node.slice, ast.Constant):
                 index = node.slice.value
