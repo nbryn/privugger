@@ -1,4 +1,5 @@
-class CustomNode:
+# SAST = Simplified Abstract Syntax Tree
+class SastNode:
     name_with_line_number = ""
     line_number = -1
     name = ""

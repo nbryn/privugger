@@ -61,14 +61,14 @@ def temp_pymc(ages):
     return model
 
 
-def ages_dp_pymc():
+def dp_mean_pymc():
     with pm.Model() as model:
         ages = pm.Uniform("ages", lower=0, upper=100, size=100)
-        avg = pm.Deterministic("avg", pm.math.sum(ages) / ages.shape)
+        mean = pm.Deterministic("avg", pm.math.sum(ages) / ages.shape)
         epsilon = pm.Deterministic("epsilon", 0.1)
         delta = pm.Deterministic("delta", 100 / ages.shape)
         nu = pm.Laplace("nu", mu=0, b=delta / epsilon)
-        dp_avg = pm.Deterministic("dp_avg", avg + nu)
+        dp_mean = pm.Deterministic("dp_avg", mean + nu)
 
     return model
 
@@ -160,17 +160,6 @@ def neural_network(ages):
     return final_layer_output
 
 
-# TODO: Confirm trace look as expected. neural_network2 afterwards
-def ages_dp(ages):
-    ages0 = ages[0]
-    avg = sum(ages) / len(ages)
-    epsilon = 0.1
-    delta = 100 / len(ages)  # assumes ages are in the interval [0-100]
-    nu = np.random.laplace(loc=0.0, scale=delta / epsilon)
-    dp_avg = avg + nu
-
-    return dp_avg
-
 
 # This works
 def neural_network2(input):
@@ -224,16 +213,27 @@ def naive_k_anonymity(ages):
         if not k_prime < k:
             return ages
 
-    return ages       
+    return ages   
+
+def dp_mean(ages):
+    mean = sum(ages) / len(ages)
+    epsilon = 0.1
+    delta = 100 / len(ages)  # Assumes ages are in the interval [0-100]
+    nu = np.random.laplace(loc=0.0, scale=delta / epsilon)
+    dp_mean = mean + nu
+
+    return dp_mean    
 
 ages = pv.Uniform("ages", lower=0, upper=100, num_elements=20)
 ds = pv.Dataset(input_specs=[ages])
-program = pv.Program("output", dataset=ds, output_type=pv.Float, function=next)
-program.add_observation("output==44", precision=0.1)
+program = pv.Program("output", dataset=ds, output_type=pv.Float, function=dp_mean)
 
 trace: az.InferenceData = pv.infer(
     program, cores=4, draws=10_000, method=pv.Method.PYMC, use_new_method=True
 )
+
+
+
 
 print(trace["posterior"])
 # az.plot_posterior(trace, var_names=['return - 13'], hdi_prob=.95)

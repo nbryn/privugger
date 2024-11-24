@@ -1,4 +1,4 @@
-from ...custom_node import CustomNode
+from ...custom_node import SastNode
 from typing import List
 from enum import Enum
 
@@ -9,14 +9,14 @@ class NumpyOperation(Enum):
     DOT = 3
 
 
-class Numpy(CustomNode):
+class Numpy(SastNode):
     def __init__(self, line_number, name):
         super().__init__(f"Numpy-{name}", line_number)
 
 
 class NumpyFunction(Numpy):
     operation: NumpyOperation = None
-    arguments: List[CustomNode] = []
+    arguments: List[SastNode] = []
 
     def __init__(self, line_number, operation: NumpyOperation, arguments):
         super().__init__(line_number, operation.name)
@@ -25,7 +25,7 @@ class NumpyFunction(Numpy):
 
 
 class NumpyExponential(Numpy):
-    scale: CustomNode
+    scale: SastNode
 
     def __init__(self, line_number, scale):
         super().__init__(line_number, "Exponential")
@@ -33,7 +33,7 @@ class NumpyExponential(Numpy):
 
 
 class NumpyPoisson(Numpy):
-    lam: CustomNode
+    lam: SastNode
 
     def __init__(self, line_number, lam):
         super().__init__(line_number, "Poisson")
@@ -41,8 +41,8 @@ class NumpyPoisson(Numpy):
 
 
 class NumpyBinomial(Numpy):
-    n: CustomNode
-    p: CustomNode
+    n: SastNode
+    p: SastNode
 
     def __init__(self, line_number, n, p):
         super().__init__(line_number, "Binomial")
@@ -51,8 +51,8 @@ class NumpyBinomial(Numpy):
 
 
 class NumpyUniform(Numpy):
-    low: CustomNode
-    high: CustomNode
+    low: SastNode
+    high: SastNode
 
     def __init__(self, line_number, low, high):
         super().__init__(line_number, "Uniform")
@@ -61,8 +61,8 @@ class NumpyUniform(Numpy):
 
 
 class NumpyNormal(Numpy):
-    scale: CustomNode
-    loc: CustomNode
+    scale: SastNode
+    loc: SastNode
 
     def __init__(self, line_number, loc, scale):
         super().__init__(line_number, "Normal")
@@ -71,8 +71,8 @@ class NumpyNormal(Numpy):
 
 
 class NumpyLaplace(Numpy):
-    scale: CustomNode
-    loc: CustomNode
+    scale: SastNode
+    loc: SastNode
 
     def __init__(self, line_number, loc, scale):
         super().__init__(line_number, "Laplace")

@@ -1,4 +1,4 @@
-from ...custom_node import CustomNode
+from ...custom_node import SastNode
 from ..name.name_model import Name
 from enum import Enum
 
@@ -11,7 +11,7 @@ class AttributeOperation(Enum):
 # Represents 'object.attribute'
 # Attribute can be a standard python function (like sum) or a custom attribute
 # If it's a operation it will be of type operation otherwise it will be a string
-class Attribute(CustomNode):
+class Attribute(SastNode):
     operand: Name = None
     attribute = None
 

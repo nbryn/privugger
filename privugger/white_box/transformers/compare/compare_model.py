@@ -1,4 +1,4 @@
-from ...custom_node import CustomNode
+from ...custom_node import SastNode
 from enum import Enum
 
 class CompareOperation(Enum):
@@ -10,7 +10,7 @@ class CompareOperation(Enum):
     GTE = 6
 
 # TODO: Compare doesn't have to be a operation, can also be function call
-class Compare(CustomNode):
+class Compare(SastNode):
     operation: CompareOperation = None
     right = None
     left = None
@@ -23,7 +23,7 @@ class Compare(CustomNode):
 
 
 # TODO: Compare2 doesn't have to be a operation, can also be function call
-class Compare2(CustomNode):
+class Compare2(SastNode):
     right_operation: CompareOperation = None
     left_operation: CompareOperation = None
     middle = None

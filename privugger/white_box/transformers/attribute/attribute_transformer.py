@@ -32,7 +32,7 @@ class AttributeTransformer(AstTransformer):
 
         if node.attribute == AttributeOperation.LEN:
             if size:
-                return
+                return size
 
             return (
                 operand.shape[0]

@@ -110,8 +110,8 @@ class NumpyTransformer(AstTransformer):
         ) in self.custom_distribution_to_pymc_map.items():
             if isinstance(node, dist_type):
                 pymc_params = [
-                    super(self.__class__, self).to_pymc(
-                        getattr(node, param), condition, in_function
+                    AstTransformer.to_pymc(
+                        self, getattr(node, param), condition, in_function
                     )
                     for param in params
                 ]

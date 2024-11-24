@@ -1,4 +1,4 @@
-from ...custom_node import CustomNode
+from ...custom_node import SastNode
 from enum import Enum
 
 
@@ -7,10 +7,10 @@ class BoolOperation(Enum):
     OR = 2
 
 
-class BoolOp(CustomNode):
+class BoolOp(SastNode):
     operation: BoolOperation
-    right: CustomNode = None
-    left: CustomNode = None
+    right: SastNode = None
+    left: SastNode = None
 
     def __init__(self, line_number, left, right, operation):
         super().__init__("BoolOp", line_number)

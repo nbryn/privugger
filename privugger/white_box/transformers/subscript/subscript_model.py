@@ -1,7 +1,7 @@
-from ...custom_node import CustomNode
+from ...custom_node import SastNode
 
 
-class Subscript(CustomNode):
+class Subscript(SastNode):
     operand = ""
     lower = None
     upper = None

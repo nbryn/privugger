@@ -21,8 +21,6 @@ class AssignTransformer(AstTransformer):
             temp_node = temp_node.value
 
         if isinstance(node.targets[0], ast.Subscript):
-            print("HERE")
-            print(ast.dump(node))
             index = super().to_custom_model(node.targets[0].slice)
             value = super().to_custom_model(node.value)
 

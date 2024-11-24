@@ -1,11 +1,11 @@
-from ...custom_node import CustomNode
+from ...custom_node import SastNode
 from typing import List
 
-class For(CustomNode):
-    body: List[CustomNode] = []
+class For(SastNode):
+    body: List[SastNode] = []
     loop_var: str
-    start: CustomNode
-    stop: CustomNode
+    start: SastNode
+    stop: SastNode
     
 
     def __init__(self, line_number, loop_var, start, stop, body):

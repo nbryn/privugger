@@ -2,7 +2,7 @@ from ...ast_transformer import AstTransformer
 from ..while_transformer.while_model import While
 from ..for_transformer.for_model import For
 from ..if_transformer.if_model import If
-from ...custom_node import CustomNode
+from ...custom_node import SastNode
 from .break_model import Break
 import ast
 
@@ -16,7 +16,7 @@ class BreakTransformer(AstTransformer):
             "Should not get here: Break is handled in the 'While' and 'For' transformers"
         )
 
-    def should_break(self, node: CustomNode) -> bool:
+    def should_break(self, node: SastNode) -> bool:
         if isinstance(node, Break):
             return True
 

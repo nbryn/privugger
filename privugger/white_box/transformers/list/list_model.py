@@ -1,7 +1,7 @@
-from ...custom_node import CustomNode
+from ...custom_node import SastNode
 
 
-class List(CustomNode):
+class List(SastNode):
     values = []
 
     def __init__(self, line_number, values):

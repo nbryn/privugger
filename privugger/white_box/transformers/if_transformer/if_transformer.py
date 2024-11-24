@@ -1,8 +1,6 @@
 from ...ast_transformer import AstTransformer
 from ..break_transformer.break_model import Break
-from ...custom_node import CustomNode
 from .if_model import If
-from typing import List
 import ast
 
 

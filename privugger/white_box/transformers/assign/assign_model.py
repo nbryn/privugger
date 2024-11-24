@@ -1,7 +1,7 @@
-from ...custom_node import CustomNode
+from ...custom_node import SastNode
 
 
-class Assign(CustomNode):
+class Assign(SastNode):
     value = None
 
     def __init__(self, variable_name, line_number, value):

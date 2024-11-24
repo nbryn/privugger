@@ -1,11 +1,11 @@
-from ...custom_node import CustomNode
+from ...custom_node import SastNode
 from typing import List
 
 
-class If(CustomNode):
-    orelse: List[CustomNode] = []
-    body: List[CustomNode] = []
-    parent_if: CustomNode = None
+class If(SastNode):
+    orelse: List[SastNode] = []
+    body: List[SastNode] = []
+    parent_if: SastNode = None
     has_break_in_body = False
     condition = None
 

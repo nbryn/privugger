@@ -1,5 +1,5 @@
 from .transformer_factory import TransformerFactory
-from .custom_node import CustomNode
+from .custom_node import SastNode
 from .method import Method
 from typing import List
 import ast
@@ -45,7 +45,7 @@ class AstTransformer:
             else:
                 raise RuntimeError("Unsupported method")
 
-    def collect_and_sort_by_line_number(self, nodes: List[ast.AST]) -> List[CustomNode]:
+    def collect_and_sort_by_line_number(self, nodes: List[ast.AST]) -> List[SastNode]:
         return list(
             sorted(
                 map(lambda node: AstTransformer.to_custom_model(self, node), nodes),
@@ -70,7 +70,7 @@ class AstTransformer:
         return transformer_class().to_custom_model(node)
 
     def to_pymc(
-        self, node: CustomNode, conditions: dict = {}, in_function=False
+        self, node: SastNode, conditions: dict = {}, in_function=False
     ):
         transformer = self.transformer_factory.create(node)
         transformer_class = type(

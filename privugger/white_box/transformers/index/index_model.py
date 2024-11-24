@@ -1,7 +1,7 @@
 from ... import custom_node
 
 
-class Index(custom_node.CustomNode):
+class Index(custom_node.SastNode):
     operand = ""
     index = None
 

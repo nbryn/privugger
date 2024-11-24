@@ -1,4 +1,4 @@
-from ...custom_node import CustomNode
+from ...custom_node import SastNode
 from ..name.name_model import Name
 from enum import Enum
 
@@ -8,9 +8,9 @@ class AugAssignOperation(Enum):
     SUB = 2
 
 
-class AugAssign(CustomNode):
+class AugAssign(SastNode):
     operation: AugAssignOperation
-    value: CustomNode = None
+    value: SastNode = None
     operand = Name
 
     def __init__(self, line_number, operand, operation, value):

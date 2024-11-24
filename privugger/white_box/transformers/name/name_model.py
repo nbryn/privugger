@@ -1,7 +1,7 @@
-from ...custom_node import CustomNode
+from ...custom_node import SastNode
 
 
-class Name(CustomNode):
+class Name(SastNode):
     reference_to = ""
 
     def __init__(self, line_number, reference_to):

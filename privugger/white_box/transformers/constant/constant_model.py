@@ -1,7 +1,7 @@
-from ...custom_node import CustomNode
+from ...custom_node import SastNode
 
 
-class Constant(CustomNode):
+class Constant(SastNode):
     value = None
 
     def __init__(self, line_number, value):
