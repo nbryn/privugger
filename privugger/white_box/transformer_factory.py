@@ -29,7 +29,7 @@ class TransformerFactory:
         if "numpy" in node_name:
             node_name = "numpy"
 
-        if "assign" in node_name:
+        if "assign" in node_name and "aug" not in node_name:
             node_name = "assign"
 
         base_path = f"privugger.white_box.transformers.{node_name}"
@@ -43,7 +43,7 @@ class TransformerFactory:
         if "Numpy" in node_name:
             node_name = "numpy"
 
-        if "Assign" in node_name:
+        if "Assign" in node_name and "Aug" not in node_name:
             node_name = "assign"
 
         return f"{node_name[0].upper() + node_name[1:]}Transformer"

@@ -31,7 +31,6 @@ class AstTransformer:
 
         # Map top level function args to PyMC. Args must be of type 'pv.Distribution'
         for index, arg_name in enumerate(self.program_arguments):
-            # TODO: Can we have more than one argument?
             self.program_variables[arg_name] = (
                 self.global_priors[index],
                 self.num_elements,

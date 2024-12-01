@@ -40,7 +40,7 @@ class BreakTransformer(AstTransformer):
     def __collect_if_nodes_with_break_in_body(
         self, node: If | For | While, nodes: list[If]
     ):
-        if node.has_break_in_body:
+        if hasattr(node, "break_in_body") and node.has_break_in_body:
             nodes.append(node)
 
         for child_node in node.body:

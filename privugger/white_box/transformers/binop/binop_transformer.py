@@ -1,5 +1,6 @@
 from ...ast_transformer import AstTransformer
 from .binop_model import BinOp, ArithmeticOperation
+import pytensor.tensor as pt
 import ast
 
 
@@ -50,6 +51,9 @@ class BinOpTransformer(AstTransformer):
             return left + right
 
         if operation == ArithmeticOperation.MULTIPLY:
+            if isinstance(left, list) and isinstance(right, pt.TensorVariable):
+                return left * right.eval().item()
+            
             return left * right
 
         print(operation)

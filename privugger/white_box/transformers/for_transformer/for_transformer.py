@@ -1,14 +1,12 @@
 from ...ast_transformer import AstTransformer
 from ..break_transformer.break_transformer import BreakTransformer
 from ..constant.constant_model import Constant
-from ..if_transformer.if_model import If
 from .for_model import For
 import ast
 
 
-# Loops aren't well supported in PyMC, meaning they shouldn't be translated
+# Loops (with complex bodies) aren't supported in PyMC, meaning they shouldn't be translated
 # into something PyMC specific, but instead function as a normal python loop.
-# Only standard 'for i in range()' for loops supported atm.
 class ForTransformer(AstTransformer):
     break_transformer = BreakTransformer()
 
@@ -32,14 +30,14 @@ class ForTransformer(AstTransformer):
         start = super().to_pymc(node.start)
         stop = super().to_pymc(node.stop)
         if isinstance(start, tuple):
-            start = start[0]
+            start = start[1]
 
         if isinstance(stop, tuple):
-            stop = stop[0]
+            stop = stop[1]
 
         should_break = False
         for i in range(start, stop):
-            self.program_variables[node.loop_var] = (i, None)
+            self.program_variables[node.loop_var] = (i, i)
             for child_node in node.body:
                 should_break = self.break_transformer.should_break(child_node)
                 super().to_pymc(child_node, conditions, in_function)

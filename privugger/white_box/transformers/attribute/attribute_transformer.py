@@ -23,12 +23,19 @@ class AttributeTransformer(AstTransformer):
 
         if attribute_name == "max":
             return AttributeOperation.MAX
+        
+        if attribute_name == "abs":
+            return AttributeOperation.ABS
 
         # Non 'common' attribute: Return the name of the attribute
         return attribute_name
 
     def to_pymc(self, node: Attribute, conditions: dict, in_function):
-        (operand, size) = super().to_pymc(node.operand, conditions, in_function)
+        operand = super().to_pymc(node.operand, conditions, in_function)
+        size = None
+        if isinstance(operand, tuple):
+            size = operand[1]
+            operand = operand[0]
 
         if node.attribute == AttributeOperation.LEN:
             if size:
@@ -51,15 +58,21 @@ class AttributeTransformer(AstTransformer):
             return (
                 pt.min(operand)
                 if isinstance(operand, pt.TensorVariable)
-                else sum(operand)
+                else min(operand)
             )
 
         if node.attribute == AttributeOperation.MAX:
             return (
                 pt.max(operand)
                 if isinstance(operand, pt.TensorVariable)
-                else sum(operand)
+                else max(operand)
+            )
+            
+        if node.attribute == AttributeOperation.ABS:
+            return (
+                pm.math.abs(operand)
+                if isinstance(operand, pt.TensorVariable)
+                else abs(operand)
             )
 
-        # TODO: Handle attributes that are not 'sum' and 'size'
         raise TypeError("Unsupported attribute")

@@ -7,6 +7,8 @@ class NumpyOperation(Enum):
     ARRAY = 1
     EXP = 2
     DOT = 3
+    ONES = 4
+    MEDIAN = 5
 
 
 class Numpy(SastNode):

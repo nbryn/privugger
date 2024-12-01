@@ -7,6 +7,7 @@ class AttributeOperation(Enum):
     SUM = 2
     MIN = 3
     MAX = 4
+    ABS = 5
 
 # Represents 'object.attribute'
 # Attribute can be a standard python function (like sum) or a custom attribute

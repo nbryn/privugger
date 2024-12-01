@@ -41,10 +41,13 @@ class AssignTransformer(AstTransformer):
             self.program_variables[node.name] = (tensor_var, None)
             return tensor_var
 
-        size = len(variable) if isinstance(variable, Sized) else None
         if isinstance(variable, tuple):
-            variable = variable[0]
+            if isinstance(variable[0], tuple):
+                variable = (variable[0][0], variable[1])
+            else:
+                variable = variable[0]
 
+        size = self.__get_size(variable)
         # This handles assignment to parameter/argument.
         # We shouldn't (and can't) change the input as it's a distribution.
         if (
@@ -78,18 +81,14 @@ class AssignTransformer(AstTransformer):
             # 'combined_conditions' handles nested if's.
             combined_conditions = reduce(pm.math.and_, list(conditions.values()))
 
-            # Variable declared outside if
-            # TODO: This doesn't work inside a loop as all occurrences
-            # will set to value of the last time it was assigned.
-            # Probably need to use variable with line number as name inside loop
-            # Problem: First iteration program_variables[node.name_with_line_number] will not be present
+            # Variable declared outside if.
             if node.name in self.program_variables:
                 (current_var, size) = self.program_variables[node.name]
                 tensor_var = pm.math.switch(
                     combined_conditions, tensor_var, current_var
                 )
 
-            # Variable declared inside .
+            # Variable declared inside if.
             else:
                 print("should not get here")
                 (default_value, size) = self.__get_default_pymc_value(node.value)
@@ -105,6 +104,12 @@ class AssignTransformer(AstTransformer):
             pm.Deterministic(pymc_variable_name, tensor_var)
 
         return tensor_var
+
+    def __get_size(self, variable):
+        if isinstance(variable, int):
+            return variable
+
+        return len(variable) if isinstance(variable, Sized) else None
 
     # This method isn't needed if we constrain the input program as follows:
     # - Variables must be initialized outside if/while.

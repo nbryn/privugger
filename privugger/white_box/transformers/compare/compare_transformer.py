@@ -59,6 +59,9 @@ class CompareTransformer(AstTransformer):
         raise TypeError("Unknown AST operation")
 
     def _to_pymc_operation(self, operation: CompareOperation, operand, right=None):
+        if isinstance(right, tuple):
+            right = right[0]
+
         if operation == CompareOperation.EQUAL:
             return pm_math.eq(operand, right)
 

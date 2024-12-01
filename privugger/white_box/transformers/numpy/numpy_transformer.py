@@ -1,6 +1,7 @@
 from ...ast_transformer import AstTransformer
 import pytensor.tensor as pt
 from .numpy_model import *
+import numpy as np
 import pymc as pm
 import ast
 
@@ -84,6 +85,12 @@ class NumpyTransformer(AstTransformer):
         if operation == "dot":
             return NumpyOperation.DOT
 
+        if operation == "ones":
+            return NumpyOperation.ONES
+        
+        if operation == "median":
+            return NumpyOperation.MEDIAN
+
         raise TypeError("Unknown numpy function")
 
     def to_pymc(self, node: Numpy, conditions: dict, in_function):
@@ -97,6 +104,15 @@ class NumpyTransformer(AstTransformer):
 
             if node.operation == NumpyOperation.DOT:
                 return pm.math.dot(mapped_arguments[0][0], mapped_arguments[1][0])
+
+            if node.operation == NumpyOperation.ONES:
+                if isinstance(mapped_arguments[0][0], tuple):
+                    return pt.ones((mapped_arguments[0][0][0], mapped_arguments[0][1]))    
+        
+                return pt.ones((mapped_arguments[0][0], mapped_arguments[0][1]))
+            
+            if node.operation == NumpyOperation.MEDIAN:
+                return np.median(mapped_arguments[0][0].eval())
 
             print(type(node))
             raise TypeError("Unknown Numpy function")
