@@ -55,7 +55,7 @@ class NumpyTransformer(AstTransformer):
 
     def __handle_numpy_distribution(self, node: ast.Call):
         if len(node.keywords) == 0:
-            # Use np.random.exponential(scale=1) instead of np.random.exponential(1)
+            # Use np.random.exponential(scale=1) instead of np.random.exponential(1).
             raise TypeError(
                 "Keyword arguments must be used when working with distributions"
             )
@@ -76,20 +76,9 @@ class NumpyTransformer(AstTransformer):
         return super().to_custom_model(argument)
 
     def __to_custom_operation(self, operation):
-        if operation == "array":
-            return NumpyOperation.ARRAY
-
-        if operation == "exp":
-            return NumpyOperation.EXP
-
-        if operation == "dot":
-            return NumpyOperation.DOT
-
-        if operation == "ones":
-            return NumpyOperation.ONES
-        
-        if operation == "median":
-            return NumpyOperation.MEDIAN
+        for numpy_operation in NumpyOperation:
+            if numpy_operation.name == operation.upper():
+                return numpy_operation
 
         raise TypeError("Unknown numpy function")
 
@@ -97,7 +86,11 @@ class NumpyTransformer(AstTransformer):
         if isinstance(node, NumpyFunction):
             mapped_arguments = list(map(super().to_pymc, node.arguments))
             if node.operation == NumpyOperation.ARRAY:
-                return pt.as_tensor_variable(mapped_arguments[0])
+                arg = mapped_arguments[0][0] if isinstance(mapped_arguments[0], tuple) else mapped_arguments[0]
+                if isinstance(arg, list):
+                    arg = [a[0] if isinstance(a, tuple) else a for a in arg]
+                
+                return pt.as_tensor_variable(arg)
 
             if node.operation == NumpyOperation.EXP:
                 return pm.math.exp(mapped_arguments[0])
@@ -107,12 +100,19 @@ class NumpyTransformer(AstTransformer):
 
             if node.operation == NumpyOperation.ONES:
                 if isinstance(mapped_arguments[0][0], tuple):
-                    return pt.ones((mapped_arguments[0][0][0], mapped_arguments[0][1]))    
-        
+                    return pt.ones((mapped_arguments[0][0][0], mapped_arguments[0][1]))
+
                 return pt.ones((mapped_arguments[0][0], mapped_arguments[0][1]))
-            
+
             if node.operation == NumpyOperation.MEDIAN:
+                # TODO: Replace with pm.math.median after upgrading PyMC to newest version.
                 return np.median(mapped_arguments[0][0].eval())
+
+            if node.operation == NumpyOperation.MEAN:
+                return pt.mean(mapped_arguments[0][0])
+
+            if node.operation == NumpyOperation.STD:
+                return pt.std(mapped_arguments[0][0])
 
             print(type(node))
             raise TypeError("Unknown Numpy function")

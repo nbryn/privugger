@@ -14,7 +14,7 @@ class ReturnTransformer(AstTransformer):
         value = super().to_pymc(node.value, condition, in_function)
         if isinstance(value, tuple):
             value = value[0]
-
+    
         if in_function:
             return value
 

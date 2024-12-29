@@ -1,5 +1,6 @@
 from ...ast_transformer import AstTransformer
 from .unaryop_model import UnaryOp, UnaryOperation
+
 import pymc as pm
 import ast
 
@@ -11,8 +12,8 @@ class UnaryOpTransformer(AstTransformer):
 
         return UnaryOp(node.lineno, operand, operation)
 
-    def to_pymc(self, node: UnaryOp, condition, in_function):
-        operand = super().to_pymc(node.operand, condition, in_function)
+    def to_pymc(self, node: UnaryOp, conditions, in_function):
+        operand = super().to_pymc(node.operand, conditions, in_function)
         if isinstance(operand, tuple):
             operand = operand[0]
 

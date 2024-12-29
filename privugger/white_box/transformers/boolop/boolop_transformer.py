@@ -38,7 +38,6 @@ class BoolOpTransformer(AstTransformer):
     
     def _to_pymc_operation(self, operation: BoolOperation, left, right):
         if operation == BoolOperation.AND:
-            # TODO: Why did I do pm.math.and_(np.array(left), np.array(right)) here? Test with constants
             return pm.math.and_(left, right)
         
         if operation == BoolOperation.OR:

@@ -29,14 +29,14 @@ class AstTransformer:
             self.__collect_top_level_nodes(abstract_syntax_tree)
         )
 
-        # Map top level function args to PyMC. Args must be of type 'pv.Distribution'
+        # Map top level function args to PyMC. Args must be of type 'pv.Distribution'.
         for index, arg_name in enumerate(self.program_arguments):
             self.program_variables[arg_name] = (
                 self.global_priors[index],
                 self.num_elements,
             )
 
-        # Construct white-box model using selected method
+        # Construct white-box model using selected method.
         for node in custom_nodes:
             if self.method == Method.PYMC:
                 self.to_pymc(node)
@@ -53,7 +53,7 @@ class AstTransformer:
         )
 
     def __collect_top_level_nodes(self, root: ast.AST) -> List[ast.AST]:
-        # Assumes that root is 'ast.FunctionDef'
+        # Assumes that root is 'ast.FunctionDef'.
         nodes = []
         for child_node in ast.iter_child_nodes(root.body[0]):
             if child_node.__class__ is not ast.arguments:
@@ -79,6 +79,7 @@ class AstTransformer:
                 "program_variables": self.program_variables,
                 "program_functions": self.program_functions,
                 "program_arguments": self.program_arguments,
+                "num_elements": self.num_elements,
             },
         )
 

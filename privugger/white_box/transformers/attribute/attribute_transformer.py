@@ -27,7 +27,7 @@ class AttributeTransformer(AstTransformer):
         if attribute_name == "abs":
             return AttributeOperation.ABS
 
-        # Non 'common' attribute: Return the name of the attribute
+        # Attribute not related to Python library function: Return the name of the attribute
         return attribute_name
 
     def to_pymc(self, node: Attribute, conditions: dict, in_function):

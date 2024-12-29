@@ -35,7 +35,7 @@ class AssignTransformer(AstTransformer):
             self.program_variables[node.name] = (variable, -1)
             return
 
-        # 'variable' is a function that returns a random variable
+        # 'variable' is a function that returns a random variable.
         if isinstance(variable, types.FunctionType):
             tensor_var = variable(node.name_with_line_number)
             self.program_variables[node.name] = (tensor_var, None)
@@ -55,7 +55,8 @@ class AssignTransformer(AstTransformer):
             and node.value.reference_to in self.program_arguments
         ):
             (operand, size) = self.program_variables[node.value.reference_to]
-            variable = operand[: self.num_elements]
+            variable = operand[: size]
+
 
         pymc_variable_name = node.name_with_line_number
         tensor_var = pt.as_tensor_variable(variable)

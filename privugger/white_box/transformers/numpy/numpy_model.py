@@ -5,12 +5,13 @@ from enum import Enum
 
 class NumpyOperation(Enum):
     ARRAY = 1
-    EXP = 2
-    DOT = 3
-    ONES = 4
-    MEDIAN = 5
-
-
+    DOT = 2
+    EXP = 3
+    MEDIAN = 4
+    MEAN = 5
+    ONES = 6
+    STD = 7
+    
 class Numpy(SastNode):
     def __init__(self, line_number, name):
         super().__init__(f"Numpy-{name}", line_number)

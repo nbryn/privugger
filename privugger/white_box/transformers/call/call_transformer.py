@@ -23,24 +23,23 @@ class CallTransformer(AstTransformer):
         if self.numpy_transformer.is_numpy(node.func):
             return self.numpy_transformer.to_custom_model(node)
 
-        # TODO: Can operand both be a function and an object?
         operand = super().to_custom_model(node.func)
         mapped_arguments = list(map(super().to_custom_model, node.args))
 
         return Call(node.lineno, operand, mapped_arguments)
 
-    def to_pymc(self, node: Call, condition, in_function):
+    def to_pymc(self, node: Call, conditions, in_function):
         if isinstance(node.operand, Attribute):
-            return super().to_pymc(node.operand, condition, in_function)
+            return super().to_pymc(node.operand, conditions, in_function)
 
         mapped_arguments = list(map(super().to_pymc, node.arguments))
         if isinstance(node.operand, Name):
-            return self.__handle_function_call(node, mapped_arguments)
+            return self.__handle_function_call(node, mapped_arguments, conditions)
 
         print(type(node.operand))
         raise TypeError("Unsupported call operand")
 
-    def __handle_function_call(self, node, mapped_arguments):
+    def __handle_function_call(self, node, mapped_arguments, conditions):
         if node.operand.reference_to in self.program_functions:
             (function_body, function_arguments) = self.program_functions[
                 node.operand.reference_to
@@ -51,10 +50,9 @@ class CallTransformer(AstTransformer):
 
             for child_node in function_body:
                 if isinstance(child_node, Return):
-                    return super().to_pymc(child_node, None, True)
+                    return super().to_pymc(child_node, conditions, True)
 
-                super().to_pymc(child_node, None, True)
+                super().to_pymc(child_node, conditions, True)
 
-            # TODO: Will it always be a reference to a function?
         print(node.operand.reference_to)
         raise TypeError("Reference to unknown function")

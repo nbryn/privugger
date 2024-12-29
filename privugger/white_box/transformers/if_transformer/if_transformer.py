@@ -11,7 +11,7 @@ class IfTransformer(AstTransformer):
         condition = super().to_custom_model(node.test)
         has_break_in_body = any(isinstance(child_node, Break) for child_node in body)
         
-        # We can have multiple if's here
+        # We can have multiple if's here.
         child_ifs = list(filter(lambda child_node: isinstance(child_node, If), body))
         if_node = If(node.lineno, condition, body, orelse, has_break_in_body)
         for child_if in child_ifs:
@@ -19,7 +19,7 @@ class IfTransformer(AstTransformer):
         
         return if_node
 
-    # AssignTransformer handles conditionally assigning values
+    # AssignTransformer handles conditionally assigning values.
     # depending on whether the condition is true or not.
     def to_pymc(self, node: If, conditions: dict, in_function):
         condition = super().to_pymc(node.condition, conditions, in_function)
