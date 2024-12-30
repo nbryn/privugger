@@ -5,16 +5,16 @@ import ast
 
 
 class CompareTransformer(AstTransformer):
-    def to_custom_model(self, node: ast.Compare):
-        left = super().to_custom_model(node.left)
+    def to_sast(self, node: ast.Compare):
+        left = super().to_sast(node.left)
         # Assumes max two comparators
         left_operation = self._to_custom_operation(node.ops[0])
-        middle_or_right = super().to_custom_model(node.comparators[0])
+        middle_or_right = super().to_sast(node.comparators[0])
         if len(node.comparators) < 2:
             return Compare(node.lineno, left, middle_or_right, left_operation)
 
         right_operation = self._to_custom_operation(node.ops[1])
-        right = super().to_custom_model(node.comparators[1])
+        right = super().to_sast(node.comparators[1])
 
         return Compare2(
             node.lineno, left, left_operation, middle_or_right, right, right_operation

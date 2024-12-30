@@ -47,7 +47,7 @@ class AstTransformer:
     def collect_and_sort_by_line_number(self, nodes: List[ast.AST]) -> List[SastNode]:
         return list(
             sorted(
-                map(lambda node: AstTransformer.to_custom_model(self, node), nodes),
+                map(lambda node: AstTransformer.to_sast(self, node), nodes),
                 key=lambda node: node.line_number,
             )
         )
@@ -61,12 +61,12 @@ class AstTransformer:
 
         return sorted(nodes, key=lambda node: node.lineno)
 
-    def to_custom_model(self, node: ast.AST):
+    def to_sast(self, node: ast.AST):
         if not node:
             return None
 
         transformer_class = self.transformer_factory.create(node)
-        return transformer_class().to_custom_model(node)
+        return transformer_class().to_sast(node)
 
     def to_pymc(
         self, node: SastNode, conditions: dict = {}, in_function=False

@@ -5,10 +5,10 @@ import ast
 
 
 class IfTransformer(AstTransformer):
-    def to_custom_model(self, node: ast.If):
+    def to_sast(self, node: ast.If):
         orelse = super().collect_and_sort_by_line_number(node.orelse)
         body = super().collect_and_sort_by_line_number(node.body)
-        condition = super().to_custom_model(node.test)
+        condition = super().to_sast(node.test)
         has_break_in_body = any(isinstance(child_node, Break) for child_node in body)
         
         # We can have multiple if's here.

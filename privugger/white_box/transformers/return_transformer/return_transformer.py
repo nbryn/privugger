@@ -6,8 +6,8 @@ import ast
 
 
 class ReturnTransformer(AstTransformer):
-    def to_custom_model(self, node: ast.Return):
-        value = super().to_custom_model(node.value)
+    def to_sast(self, node: ast.Return):
+        value = super().to_sast(node.value)
         return Return(node.lineno, value)
 
     def to_pymc(self, node: Return, condition, in_function):

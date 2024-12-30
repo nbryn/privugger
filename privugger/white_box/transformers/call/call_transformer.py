@@ -11,20 +11,20 @@ import ast
 class CallTransformer(AstTransformer):
     numpy_transformer = NumpyTransformer()
 
-    def to_custom_model(self, node: ast.Call):
+    def to_sast(self, node: ast.Call):
         if isinstance(node.func, ast.Name) and node.func.id in [
             operation.name.lower() for operation in AttributeOperation
         ]:
             attribute = ast.Attribute(
                 value=node.args[0], attr=node.func.id, lineno=node.lineno
             )
-            return AttributeTransformer().to_custom_model(attribute)
+            return AttributeTransformer().to_sast(attribute)
 
         if self.numpy_transformer.is_numpy(node.func):
-            return self.numpy_transformer.to_custom_model(node)
+            return self.numpy_transformer.to_sast(node)
 
-        operand = super().to_custom_model(node.func)
-        mapped_arguments = list(map(super().to_custom_model, node.args))
+        operand = super().to_sast(node.func)
+        mapped_arguments = list(map(super().to_sast, node.args))
 
         return Call(node.lineno, operand, mapped_arguments)
 

@@ -5,10 +5,10 @@ import ast
 
 
 class BinOpTransformer(AstTransformer):
-    def to_custom_model(self, node: ast.BinOp):
+    def to_sast(self, node: ast.BinOp):
         operation = self._to_custom_operation(node.op)
-        right = super().to_custom_model(node.right)
-        left = super().to_custom_model(node.left)
+        right = super().to_sast(node.right)
+        left = super().to_sast(node.left)
 
         return BinOp(node.lineno, left, right, operation)
 

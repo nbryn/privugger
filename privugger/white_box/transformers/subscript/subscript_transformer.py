@@ -5,16 +5,16 @@ import ast
 
 
 class SubscriptTransformer(AstTransformer):
-    def to_custom_model(self, node: ast.Subscript):
+    def to_sast(self, node: ast.Subscript):
         if (
             isinstance(node.slice, ast.Index)
             or isinstance(node.slice, ast.Constant)
             or isinstance(node.slice, ast.Name)
         ):
-            return IndexTransformer().to_custom_model(node)
+            return IndexTransformer().to_sast(node)
 
-        lower = super().to_custom_model(node.slice.lower)
-        upper = super().to_custom_model(node.slice.upper)
+        lower = super().to_sast(node.slice.lower)
+        upper = super().to_sast(node.slice.upper)
         dependency_name = node.value.id
 
         return Subscript(node.lineno, dependency_name, lower, upper)

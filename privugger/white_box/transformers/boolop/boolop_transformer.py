@@ -5,10 +5,10 @@ import pymc as pm
 import ast
 
 class BoolOpTransformer(AstTransformer):
-    def to_custom_model(self, node: ast.BoolOp):
+    def to_sast(self, node: ast.BoolOp):
         operation = self._to_custom_operation(node.op)
-        right = super().to_custom_model(node.values[0])
-        left = super().to_custom_model(node.values[1])
+        right = super().to_sast(node.values[0])
+        left = super().to_sast(node.values[1])
         
         return BoolOp(node.lineno, left, right, operation)
         

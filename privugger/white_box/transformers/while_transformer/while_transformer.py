@@ -8,9 +8,9 @@ import ast
 class WhileTransformer(AstTransformer):
     break_transformer = BreakTransformer()
 
-    def to_custom_model(self, node: ast.AST):
+    def to_sast(self, node: ast.AST):
         body = super().collect_and_sort_by_line_number(node.body)
-        test = super().to_custom_model(node.test)
+        test = super().to_sast(node.test)
 
         return While(node.lineno, test, body)
 

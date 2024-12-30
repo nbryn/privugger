@@ -4,7 +4,7 @@ import ast
 
 
 class IndexTransformer(AstTransformer):
-    def to_custom_model(self, node: ast.Index | ast.Subscript):
+    def to_sast(self, node: ast.Index | ast.Subscript):
         if isinstance(node, ast.Subscript):
             if isinstance(node.value, ast.Subscript):
                 first_index = self.__get_custom_model_index(node.value)
@@ -16,7 +16,7 @@ class IndexTransformer(AstTransformer):
             index = self.__get_custom_model_index(node)
             return Index(node.lineno, node.value.id, index)
 
-        return super().to_custom_model(node.value)
+        return super().to_sast(node.value)
 
     def to_pymc(self, node: Index, _, __):
         (operand, _) = self.program_variables[node.operand]

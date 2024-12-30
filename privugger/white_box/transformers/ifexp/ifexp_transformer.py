@@ -5,10 +5,10 @@ import ast
 
 
 class IfExpTransformer(AstTransformer):
-    def to_custom_model(self, node: ast.IfExp):
-        condition = super().to_custom_model(node.test)
-        orelse = super().to_custom_model(node.orelse)
-        body = super().to_custom_model(node.body)
+    def to_sast(self, node: ast.IfExp):
+        condition = super().to_sast(node.test)
+        orelse = super().to_sast(node.orelse)
+        body = super().to_sast(node.body)
 
         return IfExp(node.lineno, condition, body, orelse)
 

@@ -5,10 +5,10 @@ import ast
 
 
 class AugAssignTransformer(AstTransformer):
-    def to_custom_model(self, node: ast.AugAssign):
+    def to_sast(self, node: ast.AugAssign):
         operation = self.__to_custom_operation(node.op)
-        operand = super().to_custom_model(node.target)
-        value = super().to_custom_model(node.value)
+        operand = super().to_sast(node.target)
+        value = super().to_sast(node.value)
 
         return AugAssign(node.lineno, operand, operation, value)
 

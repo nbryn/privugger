@@ -13,7 +13,7 @@ import ast
 
 
 class AssignTransformer(AstTransformer):
-    def to_custom_model(self, node: ast.Assign):
+    def to_sast(self, node: ast.Assign):
         # Assumes only one target
         # IE: var1, var2 = 1, 2 not currently supported
         temp_node = node.targets[0]
@@ -21,12 +21,12 @@ class AssignTransformer(AstTransformer):
             temp_node = temp_node.value
 
         if isinstance(node.targets[0], ast.Subscript):
-            index = super().to_custom_model(node.targets[0].slice)
-            value = super().to_custom_model(node.value)
+            index = super().to_sast(node.targets[0].slice)
+            value = super().to_sast(node.value)
 
             return AssignIndex(temp_node.id, node.lineno, value, index)
 
-        value = super().to_custom_model(node.value)
+        value = super().to_sast(node.value)
         return Assign(temp_node.id, node.lineno, value)
 
     def to_pymc(self, node: Assign, conditions: dict, in_function):

@@ -4,8 +4,8 @@ import ast
 
 
 class ListTransformer(AstTransformer):
-    def to_custom_model(self, node: ast.List):
-        values = list(map(super().to_custom_model, node.elts))
+    def to_sast(self, node: ast.List):
+        values = list(map(super().to_sast, node.elts))
         return List(node.lineno, values)
 
     def to_pymc(self, node: List, _, __):

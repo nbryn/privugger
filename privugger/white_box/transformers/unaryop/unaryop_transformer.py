@@ -6,9 +6,9 @@ import ast
 
 
 class UnaryOpTransformer(AstTransformer):
-    def to_custom_model(self, node: ast.UnaryOp):
+    def to_sast(self, node: ast.UnaryOp):
         operation = self._to_custom_operation(node.op)
-        operand = super().to_custom_model(node.operand)
+        operand = super().to_sast(node.operand)
 
         return UnaryOp(node.lineno, operand, operation)
 

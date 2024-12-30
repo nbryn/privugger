@@ -4,8 +4,8 @@ import ast
 
 
 class TupleTransformer(AstTransformer):
-    def to_custom_model(self, node: ast.Tuple):
-        args = tuple(map(super().to_custom_model, node.elts))
+    def to_sast(self, node: ast.Tuple):
+        args = tuple(map(super().to_sast, node.elts))
         return Tuple(node.lineno, args)
 
     def to_pymc(self, node: Tuple, _, __):

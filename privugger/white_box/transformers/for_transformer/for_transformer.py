@@ -10,19 +10,19 @@ import ast
 class ForTransformer(AstTransformer):
     break_transformer = BreakTransformer()
 
-    def to_custom_model(self, node: ast.For):
+    def to_sast(self, node: ast.For):
         body = super().collect_and_sort_by_line_number(node.body)
         loop_var = node.target.id
 
         # We only have stop as in 'range(stop)'.
         if len(node.iter.args) == 1:
             start = Constant(node.lineno, 0)
-            stop = super().to_custom_model(node.iter.args[0])
+            stop = super().to_sast(node.iter.args[0])
             return For(node.lineno, loop_var, start, stop, body)
 
         # We have both start and stop as in 'range(start, stop)'.
-        start = super().to_custom_model(node.iter.args[0])
-        stop = super().to_custom_model(node.iter.args[1])
+        start = super().to_sast(node.iter.args[0])
+        stop = super().to_sast(node.iter.args[1])
 
         return For(node.lineno, loop_var, start, stop, body)
 

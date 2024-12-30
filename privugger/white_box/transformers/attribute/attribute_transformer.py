@@ -6,8 +6,8 @@ import ast
 
 
 class AttributeTransformer(AstTransformer):
-    def to_custom_model(self, node: ast.Attribute):
-        operand = super().to_custom_model(node.value)
+    def to_sast(self, node: ast.Attribute):
+        operand = super().to_sast(node.value)
         attribute = self.__map_attribute(node.attr)
         return Attribute(node.lineno, operand, attribute)
 

@@ -37,13 +37,13 @@ class NumpyTransformer(AstTransformer):
 
         return False
 
-    def to_custom_model(self, node: ast.Call):
+    def to_sast(self, node: ast.Call):
         if self.__is_distribution(node.func.attr):
             return self.__handle_numpy_distribution(node)
 
         attribute = node.attr if hasattr(node, "attr") else node.func.attr
         np_operation = self.__to_custom_operation(attribute)
-        mapped_arguments = list(map(super().to_custom_model, node.args))
+        mapped_arguments = list(map(super().to_sast, node.args))
 
         return NumpyFunction(node.lineno, np_operation, mapped_arguments)
 
@@ -73,7 +73,7 @@ class NumpyTransformer(AstTransformer):
 
     def __find_argument(self, node, keyword):
         argument = next((x.value for x in node.keywords if x.arg == keyword), None)
-        return super().to_custom_model(argument)
+        return super().to_sast(argument)
 
     def __to_custom_operation(self, operation):
         for numpy_operation in NumpyOperation:
